@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account and profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "displayName": { "type": "string", "description": "Display name of the user" },
+        "email": { "type": "string", "description": "Email if available" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "provider": { "type": "string", "description": "Auth provider (google or anonymous)" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "lastLoginAt": { "type": "string", "description": "Last login timestamp" }
+      },
+      "required": ["uid", "displayName", "provider", "createdAt"]
+    },
+    "UserCloudData": {
+      "title": "UserCloudData",
+      "description": "Full learning progress and memory battle state for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Associated user ID matching auth UID" },
+        "profile": { "$ref": "#/entities/UserProfile", "description": "User profile" },
+        "progress": { "type": "object", "description": "Core lesson progress and user settings" },
+        "gameProgress": { "type": "object", "description": "Memory battle progress and boss clears" },
+        "kanaRecords": { "type": "object", "description": "Kana memory strength records" },
+        "updatedAt": { "type": "string", "description": "Last synchronization timestamp" }
+      },
+      "required": ["userId", "profile", "progress", "gameProgress", "kanaRecords", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserCloudData" },
+      "description": "User specific learning data and memory records"
+    }
+  }
+}

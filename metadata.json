@@ -1,0 +1,6 @@
+{
+  "name": "JEPANGIN",
+  "description": "Platform belajar bahasa Jepang yang simpel, ramah pemula, dan mudah dipahami untuk semua kalangan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

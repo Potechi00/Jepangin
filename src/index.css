@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body {
+    font-family: 'Plus Jakarta Sans', 'Noto Sans JP', sans-serif;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #0f172a; /* Rich base behind scenic canvas */
+  }
+}
+
+/* Animations for Living Japanese Environment */
+@keyframes cloudDriftSlow {
+  0% {
+    transform: translateX(-25%);
+  }
+  50% {
+    transform: translateX(15%);
+  }
+  100% {
+    transform: translateX(-25%);
+  }
+}
+
+@keyframes cloudDriftFast {
+  0% {
+    transform: translateX(20%);
+  }
+  50% {
+    transform: translateX(-20%);
+  }
+  100% {
+    transform: translateX(20%);
+  }
+}
+
+@keyframes shinkansenPass {
+  0% {
+    transform: translateX(-140%);
+    opacity: 0;
+  }
+  2% {
+    opacity: 0.95;
+  }
+  98% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(260%);
+    opacity: 0;
+  }
+}
+
+@keyframes birdFlight1 {
+  0% {
+    transform: translate(-10vw, 15vh) scale(0.7);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(50vw, 8vh) scale(0.85);
+  }
+  95% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(110vw, 4vh) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes birdWingFlap {
+  0%, 100% {
+    d: path("M0,10 Q12,-8 24,10 Q36,-8 48,10 Q24,6 0,10 Z");
+  }
+  50% {
+    d: path("M0,10 Q12,18 24,10 Q36,18 48,10 Q24,14 0,10 Z");
+  }
+}
+
+@keyframes treeSwayGentle {
+  0%, 100% {
+    transform: rotate(0deg) skewX(0deg);
+  }
+  33% {
+    transform: rotate(1.8deg) skewX(0.8deg);
+  }
+  66% {
+    transform: rotate(-1.4deg) skewX(-0.6deg);
+  }
+}
+
+@keyframes branchSwaySoft {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+@keyframes waterRippleEffect {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scaleY(1.15) translateY(2px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes lanternSway {
+  0%, 100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.animate-cloud-slow {
+  animation: cloudDriftSlow 45s ease-in-out infinite;
+}
+
+.animate-cloud-fast {
+  animation: cloudDriftFast 28s ease-in-out infinite;
+}
+
+.animate-shinkansen {
+  animation: shinkansenPass 18s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+.animate-birds-fly {
+  animation: birdFlight1 32s linear infinite;
+}
+
+.animate-tree-sway {
+  transform-origin: bottom center;
+  animation: treeSwayGentle 9s ease-in-out infinite;
+}
+
+.animate-branch-sway {
+  transform-origin: top right;
+  animation: branchSwaySoft 6s ease-in-out infinite;
+}
+
+.animate-water-ripple {
+  animation: waterRippleEffect 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 5s ease-in-out infinite;
+}
+
+.animate-lantern {
+  transform-origin: top center;
+  animation: lanternSway 5.5s ease-in-out infinite;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0.75rem);
+}
+
+/* Glassmorphism Classes for Ultra-Clear Text & Visible Japanese Scenery */
+.scenic-glass-card {
+  background-color: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+}
+
+.scenic-glass-card-subtle {
+  background-color: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.scenic-glass-card-dark {
+  background-color: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
