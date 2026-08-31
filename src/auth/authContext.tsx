@@ -62,7 +62,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Helper to convert FirebaseUser to UserProfile
 function formatFirebaseUserProfile(fbUser: FirebaseUser): UserProfile {
   const isAnonymous = fbUser.isAnonymous;
-  const isGoogle = fbUser.providerData.some((p) => p.providerId === 'google.com');
+  const isGoogle = fbUser.providerData?.some((p) => p.providerId === 'google.com');
 
   const provider: AuthProviderType = isGoogle ? 'google' : (isAnonymous ? 'anonymous' : 'anonymous');
   const displayName = isGoogle
@@ -75,13 +75,13 @@ function formatFirebaseUserProfile(fbUser: FirebaseUser): UserProfile {
     email: fbUser.email,
     photoURL: fbUser.photoURL,
     provider,
-    createdAt: fbUser.metadata.creationTime || new Date().toISOString(),
-    lastLoginAt: fbUser.metadata.lastSignInTime || new Date().toISOString(),
+    createdAt: fbUser.metadata?.creationTime || new Date().toISOString(),
+    lastLoginAt: fbUser.metadata?.lastSignInTime || new Date().toISOString(),
   };
 }
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => getStoredSessionUser());
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'saving' | 'offline' | 'error'>('synced');
@@ -125,16 +125,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     saveReadingProgressToStorage(rProgress);
 
     // 2. Cloud Firestore persistence (only when active Firebase Auth matches user UID)
-    if (auth.currentUser && auth.currentUser.uid === currentUser.uid) {
+    if (auth && auth.currentUser && auth.currentUser.uid === currentUser.uid && db) {
       try {
         const userDocRef = doc(db, 'users', currentUser.uid);
-        await setDoc(userDocRef, payload, { merge: true });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('firestore-timeout')), 2500)
+        );
+        await Promise.race([
+          setDoc(userDocRef, payload, { merge: true }),
+          timeoutPromise,
+        ]);
         setCloudSyncStatus('synced');
       } catch (err: any) {
-        if (err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.includes('permission'))) {
-          handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`);
-        }
-        console.info('Firestore sync operating in offline/local cache mode:', err?.message || err);
+        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`);
         setCloudSyncStatus('offline');
       } finally {
         setIsSaving(false);
@@ -171,12 +174,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isHydratedRef.current = true;
 
     // 2. Query Firestore in background and sync ONLY if user is authenticated with Firebase Auth
-    if (auth.currentUser && auth.currentUser.uid === profile.uid) {
+    if (auth && auth.currentUser && auth.currentUser.uid === profile.uid && db) {
       try {
         const userDocRef = doc(db, 'users', profile.uid);
-        const docSnap = await getDoc(userDocRef);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('firestore-timeout')), 2500)
+        );
+        const docSnap = await Promise.race([
+          getDoc(userDocRef),
+          timeoutPromise,
+        ]) as any;
 
-        if (docSnap.exists()) {
+        if (docSnap && docSnap.exists && docSnap.exists()) {
           const cloudData = docSnap.data() as UserCloudData;
           if (cloudData.progress) {
             setUserProgress(cloudData.progress);
@@ -199,7 +208,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             saveReadingProgressToStorage(cloudData.readingProgress);
           }
           setCloudSyncStatus('synced');
-        } else {
+        } else if (docSnap) {
           // Document does not exist yet on Firestore: initialize with existing or initial state
           if (localScoped) {
             await persistActiveUser(
@@ -227,10 +236,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
       } catch (err: any) {
-        if (err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.includes('permission'))) {
-          handleFirestoreError(err, OperationType.GET, `users/${profile.uid}`);
-        }
-        console.info('Firestore load operating in offline/local cache mode:', err?.message || err);
+        handleFirestoreError(err, OperationType.GET, `users/${profile.uid}`);
         setCloudSyncStatus('offline');
       }
     } else {
@@ -238,41 +244,70 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [persistActiveUser]);
 
-  // Initial Auth & Firestore check
+  // Initial Auth & Firestore check with fail-safe maximum timeout
   useEffect(() => {
     // 1. Non-blocking firestore connection check
     testFirestoreConnection().catch(() => {});
 
-    // 2. Subscribe to Firebase Auth state
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setIsLoading(true);
-      try {
-        if (fbUser) {
-          const profile = formatFirebaseUserProfile(fbUser);
-          setUser(profile);
-          setStoredSessionUser(profile);
-          await loadUserDataFromFirestoreOrLocal(profile);
-        } else {
-          // Check local stored session fallback
-          const localStored = getStoredSessionUser();
-          if (localStored) {
-            setUser(localStored);
-            await loadUserDataFromFirestoreOrLocal(localStored);
+    // 2. Fallback safety timer to make sure UI is never stuck on loading screen
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+
+    // 3. Subscribe to Firebase Auth state
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+        try {
+          if (fbUser) {
+            const profile = formatFirebaseUserProfile(fbUser);
+            setUser(profile);
+            setStoredSessionUser(profile);
+            await loadUserDataFromFirestoreOrLocal(profile);
           } else {
-            setUser(null);
-            if (hasLegacyLocalProgress()) {
-              setHasLegacyData(true);
+            // Check local stored session fallback
+            const localStored = getStoredSessionUser();
+            if (localStored) {
+              setUser(localStored);
+              await loadUserDataFromFirestoreOrLocal(localStored);
+            } else {
+              setUser(null);
+              if (hasLegacyLocalProgress()) {
+                setHasLegacyData(true);
+              }
             }
           }
+        } catch (err) {
+          console.warn('Auth state processing note:', err);
+        } finally {
+          setIsLoading(false);
+          clearTimeout(safetyTimer);
         }
-      } catch (err) {
-        console.error('Auth state initialization notice:', err);
-      } finally {
+      }, () => {
+        // On error in auth listener, fallback to local storage
+        const localStored = getStoredSessionUser();
+        if (localStored) {
+          setUser(localStored);
+          loadUserDataFromFirestoreOrLocal(localStored);
+        }
         setIsLoading(false);
+        clearTimeout(safetyTimer);
+      });
+    } catch (e) {
+      console.warn('Auth initialization catch:', e);
+      const localStored = getStoredSessionUser();
+      if (localStored) {
+        setUser(localStored);
+        loadUserDataFromFirestoreOrLocal(localStored);
       }
-    });
+      setIsLoading(false);
+      clearTimeout(safetyTimer);
+    }
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, [loadUserDataFromFirestoreOrLocal]);
 
   // Debounced Auto-Save to Firestore on progress changes
@@ -286,16 +321,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => clearTimeout(timer);
   }, [user, userProgress, gameProgress, kanaRecords, readingProgress, isLoading, persistActiveUser]);
 
-  // Firebase Guest Login (Anonymous Auth)
+  // Firebase Guest Login (Anonymous Auth with automatic local offline fallback)
   const loginWithGuest = async (): Promise<void> => {
     setIsLoading(true);
     try {
       let fbUser: FirebaseUser | null = null;
       try {
-        const cred = await signInAnonymously(auth);
-        fbUser = cred.user;
+        if (auth) {
+          const cred = await signInAnonymously(auth);
+          fbUser = cred.user;
+        }
       } catch (authErr) {
-        console.warn('Firebase anonymous auth fallback to local guest:', authErr);
+        console.warn('Firebase anonymous auth fallback to local guest session:', authErr);
       }
 
       const guestProfile: UserProfile = fbUser
@@ -337,32 +374,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       try {
-        const cred = await signInWithPopup(auth, googleProvider);
-        const profile = formatFirebaseUserProfile(cred.user);
-        setUser(profile);
-        setStoredSessionUser(profile);
-        await loadUserDataFromFirestoreOrLocal(profile);
+        if (auth && googleProvider) {
+          const cred = await signInWithPopup(auth, googleProvider);
+          const profile = formatFirebaseUserProfile(cred.user);
+          setUser(profile);
+          setStoredSessionUser(profile);
+          await loadUserDataFromFirestoreOrLocal(profile);
+          return;
+        }
       } catch (popupErr: any) {
         if (popupErr?.code === 'auth/popup-closed-by-user') {
           console.log('Login dibatalkan oleh pengguna.');
           return;
         }
         console.warn('Popup login fallback:', popupErr);
-        // Safe fallback simulation if popup restricted in iframe preview
-        const googleUid = 'google_' + Math.random().toString(36).substring(2, 10);
-        const fallbackUser: UserProfile = {
-          uid: googleUid,
-          displayName: 'Pembelajar Jepang',
-          email: 'user@gmail.com',
-          photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-          provider: 'google',
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-        };
-        setUser(fallbackUser);
-        setStoredSessionUser(fallbackUser);
-        await loadUserDataFromFirestoreOrLocal(fallbackUser);
       }
+
+      // Safe fallback simulation if popup restricted in iframe preview or static GitHub Pages
+      const googleUid = 'google_' + Math.random().toString(36).substring(2, 10);
+      const fallbackUser: UserProfile = {
+        uid: googleUid,
+        displayName: 'Pembelajar Jepang',
+        email: 'user@gmail.com',
+        photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+        provider: 'google',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+      setUser(fallbackUser);
+      setStoredSessionUser(fallbackUser);
+      await loadUserDataFromFirestoreOrLocal(fallbackUser);
     } finally {
       setIsLoading(false);
     }
@@ -376,7 +417,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       let updatedUser: UserProfile;
 
-      if (auth.currentUser && auth.currentUser.isAnonymous) {
+      if (auth && auth.currentUser && auth.currentUser.isAnonymous) {
         try {
           const cred = await linkWithPopup(auth.currentUser, googleProvider);
           updatedUser = formatFirebaseUserProfile(cred.user);
@@ -405,12 +446,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(updatedUser);
       setStoredSessionUser(updatedUser);
 
-      // Save preserved progress with updated Google profile directly to Firestore
+      // Save preserved progress with updated Google profile directly
       await persistActiveUser(updatedUser, userProgress, gameProgress, kanaRecords, readingProgress);
 
       return {
         success: true,
-        message: 'Semua perjalanan belajarmu sekarang terhubung ke akun Google dan tersimpan aman di Cloud Firestore!',
+        message: 'Semua perjalanan belajarmu sekarang terhubung ke akun Google dan tersimpan aman!',
       };
     } catch {
       return {
@@ -430,7 +471,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await persistActiveUser(user, userProgress, gameProgress, kanaRecords, readingProgress);
       }
       try {
-        await signOut(auth);
+        if (auth) {
+          await signOut(auth);
+        }
       } catch (signOutErr) {
         console.warn('Firebase signOut note:', signOutErr);
       }

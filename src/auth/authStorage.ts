@@ -1,12 +1,48 @@
-import { UserProgress } from '../types';
 import { GameProgressState } from '../game/gameStorage';
 import { KanaMemoryRecord } from '../game/types';
 import { UserProfile, UserCloudData } from './types';
-import { INITIAL_PROGRESS } from '../utils/storage';
 
 const SESSION_USER_KEY = 'jepangin_current_session_user_v1';
 const USER_DATA_PREFIX = 'jepangin_userdata_v1_';
 const LEGACY_MIGRATED_FLAG = 'jepangin_legacy_migrated_v1';
+
+// In-memory fallback if localStorage is blocked by browser policies
+const memoryStore: Record<string, string> = {};
+
+function safeGetItem(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {
+    // Fallback to memory
+  }
+  return memoryStore[key] || null;
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+      return;
+    }
+  } catch {
+    // Fallback to memory
+  }
+  memoryStore[key] = value;
+}
+
+function safeRemoveItem(key: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+  } catch {
+    // Fallback to memory
+  }
+  delete memoryStore[key];
+}
 
 // Generate unique ID for guest sessions
 export function generateGuestId(): string {
@@ -15,9 +51,8 @@ export function generateGuestId(): string {
 
 // Get active session user
 export function getStoredSessionUser(): UserProfile | null {
-  if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(SESSION_USER_KEY);
+    const raw = safeGetItem(SESSION_USER_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -27,23 +62,21 @@ export function getStoredSessionUser(): UserProfile | null {
 
 // Set active session user
 export function setStoredSessionUser(user: UserProfile | null): void {
-  if (typeof window === 'undefined') return;
   try {
     if (user) {
-      localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
+      safeSetItem(SESSION_USER_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem(SESSION_USER_KEY);
+      safeRemoveItem(SESSION_USER_KEY);
     }
   } catch {
-    // Ignore storage quota
+    // Ignore storage errors
   }
 }
 
 // Load user-specific container data
 export function loadUserScopedData(userId: string): UserCloudData | null {
-  if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(`${USER_DATA_PREFIX}${userId}`);
+    const raw = safeGetItem(`${USER_DATA_PREFIX}${userId}`);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -53,9 +86,8 @@ export function loadUserScopedData(userId: string): UserCloudData | null {
 
 // Save user-specific container data
 export function saveUserScopedData(data: UserCloudData): void {
-  if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(`${USER_DATA_PREFIX}${data.userId}`, JSON.stringify(data));
+    safeSetItem(`${USER_DATA_PREFIX}${data.userId}`, JSON.stringify(data));
   } catch {
     // Ignore quota errors
   }
@@ -63,11 +95,10 @@ export function saveUserScopedData(data: UserCloudData): void {
 
 // Check if legacy local progress exists
 export function hasLegacyLocalProgress(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (localStorage.getItem(LEGACY_MIGRATED_FLAG)) return false;
-  const raw = localStorage.getItem('jepangin_user_progress_v1');
-  if (!raw) return false;
   try {
+    if (safeGetItem(LEGACY_MIGRATED_FLAG)) return false;
+    const raw = safeGetItem('jepangin_user_progress_v1');
+    if (!raw) return false;
     const parsed = JSON.parse(raw);
     return (parsed.totalXp && parsed.totalXp > 0) || (parsed.completedLessonIds && parsed.completedLessonIds.length > 0);
   } catch {
@@ -77,6 +108,9 @@ export function hasLegacyLocalProgress(): boolean {
 
 // Mark legacy as handled/migrated
 export function markLegacyMigrated(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(LEGACY_MIGRATED_FLAG, 'true');
+  try {
+    safeSetItem(LEGACY_MIGRATED_FLAG, 'true');
+  } catch {
+    // Ignore
+  }
 }

@@ -104,7 +104,7 @@ function MainAppContent() {
 
   // Toggle sound fx
   const handleToggleSound = useCallback(() => {
-    setUserProgress((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+    setUserProgress((prev) => ({ ...prev, soundEffects: !prev.soundEffects }));
   }, [setUserProgress]);
 
   // Reset progress completely
