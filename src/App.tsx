@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { NavigationTab, UserProgress } from './types';
 import { calculateLevel, INITIAL_PROGRESS } from './utils/storage';
 import { findLessonById } from './data/courses';
@@ -14,6 +14,7 @@ import { PracticeView } from './components/views/PracticeView';
 import { ProgressView } from './components/views/ProgressView';
 import { ProfileView } from './components/views/ProfileView';
 import { MemoryBattleView } from './components/game/MemoryBattleView';
+import { YomeruReadingView } from './components/reading/YomeruReadingView';
 import { AuthProvider, useAuth } from './auth/authContext';
 import { WelcomeAuthModal } from './components/auth/WelcomeAuthModal';
 
@@ -22,15 +23,38 @@ function MainAppContent() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('beranda');
   const [activePlayingLessonId, setActivePlayingLessonId] = useState<string | null>(null);
   const [sceneryMode, setSceneryMode] = useState<SceneryMode>('fuji_day');
+  const [isGameFocusMode, setIsGameFocusMode] = useState<boolean>(false);
+
+  // Lock body scroll during active game sessions
+  const isGameActive = isGameFocusMode || Boolean(activePlayingLessonId);
+
+  React.useEffect(() => {
+    if (isGameActive) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isGameActive]);
 
   // Handle starting a lesson from any view
-  const handleStartLesson = (lessonId: string) => {
+  const handleStartLesson = useCallback((lessonId: string) => {
     setActivePlayingLessonId(lessonId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
+
+  // Handle tab switching
+  const handleSelectTab = useCallback((tab: NavigationTab) => {
+    setActivePlayingLessonId(null);
+    setIsGameFocusMode(false);
+    setCurrentTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Handle finishing a lesson
-  const handleFinishLesson = (lessonId: string, earnedXp: number) => {
+  const handleFinishLesson = useCallback((lessonId: string, earnedXp: number) => {
     setUserProgress((prev) => {
       const isFirstTime = !prev.completedLessonIds.includes(lessonId);
       const updatedCompleted = isFirstTime
@@ -53,10 +77,10 @@ function MainAppContent() {
         activeLessonId: lessonId,
       };
     });
-  };
+  }, [setUserProgress]);
 
-  // Handle adding XP from quick practice
-  const handleAddXp = (amount: number) => {
+  // Handle adding XP from quick practice / memory battle / yomeru
+  const handleAddXp = useCallback((amount: number) => {
     setUserProgress((prev) => {
       const newXp = prev.totalXp + amount;
       const newLevel = calculateLevel(newXp);
@@ -66,19 +90,30 @@ function MainAppContent() {
         level: newLevel,
       };
     });
-  };
+  }, [setUserProgress]);
 
-  // Update progress settings (avatar, name, font mode, etc.)
-  const handleUpdateProgress = (updated: Partial<UserProgress>) => {
-    setUserProgress((prev) => ({ ...prev, ...updated }));
-  };
+  // Update avatar
+  const handleUpdateAvatar = useCallback((avatar: string) => {
+    setUserProgress((prev) => ({ ...prev, avatar }));
+  }, [setUserProgress]);
+
+  // Update user name
+  const handleUpdateName = useCallback((userName: string) => {
+    setUserProgress((prev) => ({ ...prev, userName }));
+  }, [setUserProgress]);
+
+  // Toggle sound fx
+  const handleToggleSound = useCallback(() => {
+    setUserProgress((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+  }, [setUserProgress]);
 
   // Reset progress completely
-  const handleResetProgress = () => {
+  const handleResetProgress = useCallback(() => {
     setUserProgress(INITIAL_PROGRESS);
     setActivePlayingLessonId(null);
+    setIsGameFocusMode(false);
     setCurrentTab('beranda');
-  };
+  }, [setUserProgress]);
 
   // If in lesson player mode
   const activeLessonInfo = activePlayingLessonId ? findLessonById(activePlayingLessonId) : null;
@@ -96,39 +131,45 @@ function MainAppContent() {
     );
   }
 
+  // Determine if scenery switcher bar should be hidden (during game focus mode, lesson playing, or direct game tabs)
+  const isHideControls = isGameActive || currentTab === 'battle' || currentTab === 'yomeru';
+
   return (
     <div
-      className={`min-h-screen bg-transparent text-neutral-900 flex flex-col font-sans selection:bg-rose-500 selection:text-white relative ${
+      className={`min-h-[100dvh] w-full bg-transparent text-neutral-900 flex flex-col font-sans selection:bg-rose-500 selection:text-white relative ${
         userProgress.largeFontMode ? 'text-lg' : 'text-base'
-      }`}
+      } ${isGameActive ? 'h-[100dvh] overflow-hidden' : ''}`}
     >
       {/* Welcome / Auth Modal if user has no session yet */}
       {!user && <WelcomeAuthModal />}
 
-      {/* 1. REAL FULL-SCREEN LIVING JAPANESE ENVIRONMENT */}
+      {/* LAYER 1: LIVING JAPANESE SCENERY BACKGROUND (z-index: 0) */}
       <LivingJapaneseBackground mode={sceneryMode} onModeChange={setSceneryMode} />
 
-      {/* 2. CONTINUOUS FALLING SAKURA PETALS */}
-      <SakuraCanvas />
-
-      {/* 3. MAIN TOP HEADER NAVIGATION */}
-      <Header
-        currentTab={currentTab}
-        onSelectTab={(tab) => {
-          setActivePlayingLessonId(null);
-          setCurrentTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        progress={userProgress}
-      />
-
-      {/* 4. MAIN CONTENT AREA */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-24 md:pb-12 relative z-10">
-        {/* Scenery Atmosphere Switcher Bar */}
-        <SceneryControlBar
-          currentMode={sceneryMode}
-          onSelectMode={(m) => setSceneryMode(m)}
+      {/* LAYER 2: GLASS UI & MAIN APPLICATION CONTENT (z-index: 10 & 20) */}
+      {/* Completely hide header during active fullscreen game sessions */}
+      {!isGameActive && (
+        <Header
+          currentTab={currentTab}
+          onSelectTab={handleSelectTab}
+          progress={userProgress}
         />
+      )}
+
+      <main
+        className={`w-full mx-auto relative z-10 ${
+          isGameActive
+            ? 'flex-1 h-[100dvh] p-0 overflow-hidden max-w-full'
+            : 'flex-1 max-w-5xl px-4 sm:px-6 pt-4 sm:pt-6 pb-[calc(100px+env(safe-area-inset-bottom,0px))] md:pb-14 overflow-visible'
+        }`}
+      >
+        {/* Scenery Atmosphere Switcher Bar (Hidden in Game Focus Mode & Lessons) */}
+        {!isHideControls && (
+          <SceneryControlBar
+            currentMode={sceneryMode}
+            onSelectMode={setSceneryMode}
+          />
+        )}
 
         {activePlayingLessonId && activeLessonInfo ? (
           <LessonPlayerView
@@ -137,10 +178,7 @@ function MainAppContent() {
             progress={userProgress}
             onFinishLesson={handleFinishLesson}
             onBack={() => setActivePlayingLessonId(null)}
-            onStartNextLesson={(nextId) => {
-              setActivePlayingLessonId(nextId);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onStartNextLesson={handleStartLesson}
           />
         ) : (
           <>
@@ -148,10 +186,7 @@ function MainAppContent() {
               <HomeView
                 progress={userProgress}
                 onStartLesson={handleStartLesson}
-                onNavigateTab={(tab) => {
-                  setCurrentTab(tab);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onNavigateTab={handleSelectTab}
               />
             )}
 
@@ -166,6 +201,7 @@ function MainAppContent() {
               <PracticeView
                 progress={userProgress}
                 onAddXp={handleAddXp}
+                onFocusModeChange={setIsGameFocusMode}
               />
             )}
 
@@ -173,7 +209,17 @@ function MainAppContent() {
               <MemoryBattleView
                 progress={userProgress}
                 onAddXp={handleAddXp}
-                onBackToApp={() => setCurrentTab('beranda')}
+                onBackToApp={() => handleSelectTab('latihan')}
+                onFocusModeChange={setIsGameFocusMode}
+              />
+            )}
+
+            {currentTab === 'yomeru' && (
+              <YomeruReadingView
+                progress={userProgress}
+                onAddXp={handleAddXp}
+                onBackToApp={() => handleSelectTab('latihan')}
+                onFocusModeChange={setIsGameFocusMode}
               />
             )}
 
@@ -187,7 +233,9 @@ function MainAppContent() {
             {currentTab === 'profil' && (
               <ProfileView
                 progress={userProgress}
-                onUpdateProgress={handleUpdateProgress}
+                onUpdateName={handleUpdateName}
+                onUpdateAvatar={handleUpdateAvatar}
+                onToggleSound={handleToggleSound}
                 onResetProgress={handleResetProgress}
               />
             )}
@@ -195,15 +243,16 @@ function MainAppContent() {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <BottomNav
-        currentTab={currentTab}
-        onSelectTab={(tab) => {
-          setActivePlayingLessonId(null);
-          setCurrentTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
+      {/* Mobile Bottom Navigation Bar: Completely removed/unmounted during active game session taking ZERO vertical space */}
+      {!isGameActive && (
+        <BottomNav
+          currentTab={currentTab}
+          onSelectTab={handleSelectTab}
+        />
+      )}
+
+      {/* LAYER 3: FOREGROUND SAKURA PETALS & LEAVES (z-index: 30, above UI, pointer-events: none) */}
+      <SakuraCanvas />
     </div>
   );
 }

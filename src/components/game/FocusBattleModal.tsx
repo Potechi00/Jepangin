@@ -45,48 +45,54 @@ export const FocusBattleModal: React.FC<FocusBattleModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white/95 rounded-3xl p-6 sm:p-8 max-w-lg w-full border-2 border-amber-400 shadow-2xl space-y-6 text-neutral-900">
+      <div
+        className="rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 text-white"
+        style={{
+          background: 'rgba(20, 20, 30, 0.94)',
+          border: '1px solid rgba(251, 191, 36, 0.4)',
+        }}
+      >
         {!isFinished ? (
           <>
             {/* Header Alert */}
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
-                <AlertTriangle className="w-6 h-6" />
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-400/30">
+                <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] sm:text-xs font-black uppercase text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-400/30">
                   FOCUS BATTLE ⚠️
                 </span>
-                <h3 className="text-lg font-black text-neutral-900 mt-0.5">
+                <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
                   Latihan Pembeda Karakter
                 </h3>
               </div>
             </div>
 
             {/* Character Comparison Box */}
-            <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 flex items-center justify-around text-center">
+            <div className="bg-amber-500/10 border border-amber-400/20 rounded-2xl p-3.5 flex items-center justify-around text-center">
               <div
                 onClick={() => speakJapanese(config.primaryKana.kana)}
                 className="cursor-pointer group"
               >
-                <span className="text-4xl sm:text-5xl font-black block font-japanese text-rose-600 group-hover:scale-105 transition-transform">
+                <span className="text-3xl sm:text-4xl font-black block font-japanese text-rose-300 group-hover:scale-105 transition-transform">
                   {config.primaryKana.kana}
                 </span>
-                <span className="text-xs font-bold uppercase text-neutral-700">
+                <span className="text-xs font-bold uppercase text-white/80">
                   {config.primaryKana.romaji} 🔊
                 </span>
               </div>
 
-              <span className="text-xl font-black text-amber-700">vs</span>
+              <span className="text-lg font-black text-amber-300">vs</span>
 
               <div
                 onClick={() => speakJapanese(config.confusedWithKana.kana)}
                 className="cursor-pointer group"
               >
-                <span className="text-4xl sm:text-5xl font-black block font-japanese text-indigo-600 group-hover:scale-105 transition-transform">
+                <span className="text-3xl sm:text-4xl font-black block font-japanese text-indigo-300 group-hover:scale-105 transition-transform">
                   {config.confusedWithKana.kana}
                 </span>
-                <span className="text-xs font-bold uppercase text-neutral-700">
+                <span className="text-xs font-bold uppercase text-white/80">
                   {config.confusedWithKana.romaji} 🔊
                 </span>
               </div>
@@ -94,32 +100,32 @@ export const FocusBattleModal: React.FC<FocusBattleModalProps> = ({
 
             {/* Mini question */}
             {currentQ && (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <div className="text-center">
-                  <span className="text-xs font-bold text-neutral-500">
+                  <span className="text-xs font-bold text-white/60">
                     Latihan {currentIdx + 1} dari {config.questions.length}
                   </span>
-                  <h4 className="text-base font-extrabold text-neutral-900 mt-1">
+                  <h4 className="text-sm sm:text-base font-extrabold text-white mt-1">
                     {currentQ.promptText}:{' '}
-                    <span className="text-2xl font-black text-rose-600 ml-1">
+                    <span className="text-xl sm:text-2xl font-black text-rose-300 ml-1 font-japanese">
                       {currentQ.promptDisplay}
                     </span>
                   </h4>
                 </div>
 
                 {/* Options */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   {currentQ.options.map((opt, idx) => {
                     const isSelected = selectedOption?.text === opt.text;
-                    let style = 'bg-white hover:bg-amber-50 border-neutral-200 text-neutral-800';
+                    let style = 'bg-white/10 hover:bg-white/20 border-white/15 text-white';
 
                     if (isSubmitted) {
                       if (opt.isCorrect) {
-                        style = 'bg-emerald-500 text-white border-emerald-600 shadow-sm';
+                        style = 'bg-emerald-600 text-white border-emerald-400 shadow-sm';
                       } else if (isSelected && !opt.isCorrect) {
-                        style = 'bg-rose-500 text-white border-rose-600 line-through';
+                        style = 'bg-rose-600 text-white border-rose-400 line-through';
                       } else {
-                        style = 'bg-neutral-100 text-neutral-400 opacity-50';
+                        style = 'bg-white/5 text-white/30 opacity-40 border-white/5';
                       }
                     }
 
@@ -129,7 +135,7 @@ export const FocusBattleModal: React.FC<FocusBattleModalProps> = ({
                         id={`btn-focus-opt-${idx}`}
                         onClick={() => handleSelect(opt)}
                         disabled={isSubmitted}
-                        className={`p-4 rounded-xl border-2 font-black text-xl text-center transition-all cursor-pointer ${style}`}
+                        className={`p-3.5 rounded-xl border font-black text-lg text-center transition-all cursor-pointer ${style}`}
                       >
                         {opt.text}
                       </button>
@@ -141,10 +147,10 @@ export const FocusBattleModal: React.FC<FocusBattleModalProps> = ({
                   <button
                     id="btn-focus-next"
                     onClick={handleNext}
-                    className="w-full py-3.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-base flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md"
                   >
                     <span>Lanjut</span>
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -152,18 +158,18 @@ export const FocusBattleModal: React.FC<FocusBattleModalProps> = ({
           </>
         ) : (
           /* Focus Battle Complete */
-          <div className="text-center space-y-4 py-4">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
-              <Sparkles className="w-8 h-8" />
+          <div className="text-center space-y-4 py-3">
+            <div className="w-14 h-14 rounded-3xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center mx-auto border border-emerald-400/30">
+              <Sparkles className="w-7 h-7" />
             </div>
             <div>
-              <span className="text-xs font-black uppercase text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
+              <span className="text-xs font-black uppercase text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-400/30">
                 FOCUS COMPLETE
               </span>
-              <h3 className="text-2xl font-black text-neutral-900 mt-2">
+              <h3 className="text-xl sm:text-2xl font-black text-white mt-2">
                 🧠 Hafalanmu Semakin Kuat!
               </h3>
-              <p className="text-neutral-600 text-sm mt-1">
+              <p className="text-white/80 text-xs sm:text-sm mt-1">
                 Kamu telah melatih perbedaan antara kedua huruf. Sekarang kembali ke pertempuran utama!
               </p>
             </div>
@@ -171,10 +177,10 @@ export const FocusBattleModal: React.FC<FocusBattleModalProps> = ({
             <button
               id="btn-return-main-battle"
               onClick={onCompleteFocus}
-              className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-95"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm sm:text-base shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-95"
             >
               <span>KEMBALI KE BATTLE</span>
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         )}

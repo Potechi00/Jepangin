@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
   Brain,
   Flame,
@@ -53,19 +53,33 @@ interface MemoryBattleViewProps {
   progress: UserProgress;
   onAddXp: (amount: number) => void;
   onBackToApp?: () => void;
+  onFocusModeChange?: (isFocused: boolean) => void;
 }
 
 type BattleScreen = 'landing' | 'select_material' | 'preview' | 'playing' | 'result';
 
-export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
+export const MemoryBattleView: React.FC<MemoryBattleViewProps> = memo(({
   progress,
   onAddXp,
   onBackToApp,
+  onFocusModeChange,
 }) => {
   const { kanaRecords, setKanaRecords, gameProgress, setGameProgress } = useAuth();
 
   // Navigation & Screen State
   const [screen, setScreen] = useState<BattleScreen>('landing');
+
+  // Trigger fullscreen game mode during active battle sessions
+  useEffect(() => {
+    if (screen === 'preview' || screen === 'playing') {
+      onFocusModeChange?.(true);
+    } else {
+      onFocusModeChange?.(false);
+    }
+    return () => {
+      onFocusModeChange?.(false);
+    };
+  }, [screen, onFocusModeChange]);
   const [selectedGroup, setSelectedGroup] = useState<KanaGroup>(KANA_GROUPS[0]);
   const [selectedMode, setSelectedMode] = useState<GameMode>('battle');
   const [activeTab, setActiveTab] = useState<'hiragana' | 'katakana'>('hiragana');
@@ -378,9 +392,9 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
       {screen === 'landing' && (
         <div className="space-y-6 max-w-2xl mx-auto">
           {/* Hero Banner */}
-          <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-white/70 p-6 sm:p-9 shadow-xl text-center relative overflow-hidden">
+          <div className="cinematic-content-card rounded-3xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden">
             {/* Japanese Aesthetic Watermark */}
-            <div className="absolute -top-6 -right-6 text-7xl font-black text-rose-500/10 pointer-events-none select-none font-japanese">
+            <div className="absolute -top-6 -right-6 text-7xl font-black text-white/5 pointer-events-none select-none font-japanese">
               記憶
             </div>
 
@@ -388,91 +402,91 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
               <Brain className="w-9 h-9 sm:w-11 sm:h-11" />
             </div>
 
-            <div className="inline-flex items-center gap-1.5 bg-rose-100/90 text-rose-800 font-extrabold text-xs px-3.5 py-1 rounded-full mb-2 border border-rose-200">
+            <div className="inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-300 font-extrabold text-xs px-3.5 py-1 rounded-full mb-2 border border-rose-400/30">
               <span>🧠 JEPANGIN — MEMORY BATTLE</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black text-neutral-900 tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
               Hafalkan. Ingat. Kuasai.
             </h1>
 
-            <p className="text-neutral-600 text-sm sm:text-base mt-2 max-w-md mx-auto font-medium">
+            <p className="text-white/80 text-xs sm:text-sm mt-2 max-w-md mx-auto font-medium">
               Latih ingatanmu dan kuasai Hiragana serta Katakana melalui pertarungan memori pintar tanpa perlu berulang kali mencatat di buku.
             </p>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-3 gap-3 my-6">
-              <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3 text-center">
-                <span className="text-[11px] font-bold text-amber-700 block uppercase">Streak</span>
-                <span className="text-lg sm:text-xl font-black text-amber-900 flex items-center justify-center gap-1 mt-0.5">
-                  <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
+            <div className="grid grid-cols-3 gap-2.5 my-5">
+              <div className="bg-amber-500/15 border border-amber-400/25 rounded-2xl p-2.5 sm:p-3 text-center">
+                <span className="text-[10px] sm:text-[11px] font-bold text-amber-300 block uppercase">Streak</span>
+                <span className="text-base sm:text-lg font-black text-amber-100 flex items-center justify-center gap-1 mt-0.5">
+                  <Flame className="w-4 h-4 fill-amber-400 text-amber-400" />
                   <span>{progress.currentStreak} Hari</span>
                 </span>
               </div>
 
-              <div className="bg-rose-50/80 border border-rose-200/90 rounded-2xl p-3 text-center">
-                <span className="text-[11px] font-bold text-rose-700 block uppercase">Total XP</span>
-                <span className="text-lg sm:text-xl font-black text-rose-900 flex items-center justify-center gap-1 mt-0.5">
-                  <Sparkles className="w-4 h-4 fill-rose-500 text-rose-500" />
+              <div className="bg-rose-500/15 border border-rose-400/25 rounded-2xl p-2.5 sm:p-3 text-center">
+                <span className="text-[10px] sm:text-[11px] font-bold text-rose-300 block uppercase">Total XP</span>
+                <span className="text-base sm:text-lg font-black text-rose-100 flex items-center justify-center gap-1 mt-0.5">
+                  <Sparkles className="w-4 h-4 fill-rose-400 text-rose-400" />
                   <span>{progress.totalXp} XP</span>
                 </span>
               </div>
 
-              <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-2xl p-3 text-center">
-                <span className="text-[11px] font-bold text-indigo-700 block uppercase">Dikuasai</span>
-                <span className="text-lg sm:text-xl font-black text-indigo-900 flex items-center justify-center gap-1 mt-0.5">
-                  <Trophy className="w-4 h-4 text-indigo-600" />
+              <div className="bg-indigo-500/15 border border-indigo-400/25 rounded-2xl p-2.5 sm:p-3 text-center">
+                <span className="text-[10px] sm:text-[11px] font-bold text-indigo-300 block uppercase">Dikuasai</span>
+                <span className="text-base sm:text-lg font-black text-indigo-100 flex items-center justify-center gap-1 mt-0.5">
+                  <Trophy className="w-4 h-4 text-indigo-400" />
                   <span>{totalMastered} Huruf</span>
                 </span>
               </div>
             </div>
 
             {/* Mode Selector */}
-            <div className="text-left space-y-2 mb-6">
-              <span className="text-xs font-black uppercase tracking-wider text-neutral-500 block">
+            <div className="text-left space-y-2 mb-5">
+              <span className="text-xs font-black uppercase tracking-wider text-white/70 block">
                 Pilih Mode Bermain:
               </span>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   id="btn-mode-learn"
                   onClick={() => setSelectedMode('learn')}
-                  className={`p-3 rounded-2xl border-2 text-center transition-all cursor-pointer ${
+                  className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     selectedMode === 'learn'
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-black shadow-xs'
-                      : 'bg-white/60 border-neutral-200 text-neutral-700 hover:bg-white'
+                      ? 'bg-emerald-950/50 border-emerald-400 text-emerald-200 font-black shadow-xs'
+                      : 'bg-white/10 border-white/15 text-white/80 hover:bg-white/20'
                   }`}
                 >
                   <span className="text-lg block">🌱</span>
                   <span className="text-xs font-black block mt-0.5">Mode Santai</span>
-                  <span className="text-[10px] text-neutral-500 block">Tanpa kalah</span>
+                  <span className="text-[10px] text-white/60 block">Tanpa kalah</span>
                 </button>
 
                 <button
                   id="btn-mode-battle"
                   onClick={() => setSelectedMode('battle')}
-                  className={`p-3 rounded-2xl border-2 text-center transition-all cursor-pointer ${
+                  className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     selectedMode === 'battle'
-                      ? 'bg-rose-50 border-rose-500 text-rose-900 font-black shadow-xs'
-                      : 'bg-white/60 border-neutral-200 text-neutral-700 hover:bg-white'
+                      ? 'bg-rose-950/50 border-rose-400 text-rose-200 font-black shadow-xs'
+                      : 'bg-white/10 border-white/15 text-white/80 hover:bg-white/20'
                   }`}
                 >
                   <span className="text-lg block">⚔️</span>
                   <span className="text-xs font-black block mt-0.5">Memory Battle</span>
-                  <span className="text-[10px] text-neutral-500 block">Combo & 3 HP</span>
+                  <span className="text-[10px] text-white/60 block">Combo & 3 HP</span>
                 </button>
 
                 <button
                   id="btn-mode-boss"
                   onClick={() => setSelectedMode('boss')}
-                  className={`p-3 rounded-2xl border-2 text-center transition-all cursor-pointer ${
+                  className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                     selectedMode === 'boss'
-                      ? 'bg-purple-50 border-purple-500 text-purple-900 font-black shadow-xs'
-                      : 'bg-white/60 border-neutral-200 text-neutral-700 hover:bg-white'
+                      ? 'bg-purple-950/50 border-purple-400 text-purple-200 font-black shadow-xs'
+                      : 'bg-white/10 border-white/15 text-white/80 hover:bg-white/20'
                   }`}
                 >
                   <span className="text-lg block">👹</span>
                   <span className="text-xs font-black block mt-0.5">Boss Battle</span>
-                  <span className="text-[10px] text-neutral-500 block">Uji kelulusan</span>
+                  <span className="text-[10px] text-white/60 block">Uji kelulusan</span>
                 </button>
               </div>
             </div>
@@ -481,11 +495,11 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
             <button
               id="btn-start-memory-battle-main"
               onClick={handleStartMaterialSelection}
-              className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-black text-lg sm:text-xl shadow-lg shadow-rose-600/30 flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer"
+              className="w-full py-3.5 sm:py-4 px-6 rounded-2xl bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-black text-base sm:text-lg shadow-lg shadow-rose-600/30 flex items-center justify-center gap-3 transition-transform active:scale-95 cursor-pointer"
             >
-              <Play className="w-6 h-6 fill-white" />
+              <Play className="w-5 h-5 fill-white" />
               <span>MULAI BATTLE</span>
-              <ArrowRight className="w-6 h-6" />
+              <ArrowRight className="w-5 h-5" />
             </button>
           </div>
 
@@ -494,36 +508,36 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
             <button
               id="btn-open-kana-status-map"
               onClick={() => setShowStatusModal(true)}
-              className="bg-white/80 backdrop-blur-md hover:bg-white p-4 rounded-2xl border border-white/60 flex items-center gap-3 text-left transition-all cursor-pointer shadow-md"
+              className="cinematic-floating-card hover:bg-white/25 p-4 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 border border-indigo-200">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0 border border-indigo-400/30">
                 <BarChart3 className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <h4 className="font-extrabold text-neutral-900 text-sm">
+                <h4 className="font-extrabold text-white text-sm">
                   Statistik & Peta Kekuatan Kana
                 </h4>
-                <p className="text-xs text-neutral-500">Lihat skor daya ingat per huruf</p>
+                <p className="text-xs text-white/70">Lihat skor daya ingat per huruf</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-neutral-400" />
+              <ArrowRight className="w-4 h-4 text-white/60" />
             </button>
 
             {weakKanaList.length > 0 && (
               <button
                 id="btn-practice-weak-landing"
                 onClick={handleStartWeakKanaPractice}
-                className="bg-amber-50/90 backdrop-blur-md hover:bg-amber-100/90 p-4 rounded-2xl border border-amber-200 flex items-center gap-3 text-left transition-all cursor-pointer shadow-md"
+                className="cinematic-floating-card hover:bg-amber-950/30 p-4 rounded-2xl flex items-center gap-3 text-left transition-all cursor-pointer border-amber-400/30"
               >
-                <div className="w-10 h-10 rounded-xl bg-amber-200/80 text-amber-800 flex items-center justify-center shrink-0 border border-amber-300">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-400/30">
                   <Target className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-extrabold text-amber-950 text-sm">
+                  <h4 className="font-extrabold text-amber-200 text-sm">
                     Latih Huruf Lemah ({weakKanaList.length})
                   </h4>
-                  <p className="text-xs text-amber-800">Uji ulang huruf yang sering lupa</p>
+                  <p className="text-xs text-amber-300/80">Uji ulang huruf yang sering lupa</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-amber-700" />
+                <ArrowRight className="w-4 h-4 text-amber-300" />
               </button>
             )}
           </div>
@@ -532,39 +546,39 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
 
       {/* SCREEN 2: SELECT BATTLE MATERIAL */}
       {screen === 'select_material' && (
-        <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="space-y-5 max-w-2xl mx-auto">
           {/* Header */}
-          <div className="bg-white/85 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white/60 shadow-lg">
+          <div className="cinematic-content-card rounded-3xl p-5 sm:p-7 shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <button
                 id="btn-back-to-landing"
                 onClick={() => setScreen('landing')}
-                className="text-neutral-600 hover:text-rose-600 text-xs sm:text-sm font-bold flex items-center gap-1 cursor-pointer"
+                className="text-white/80 hover:text-rose-300 text-xs sm:text-sm font-bold flex items-center gap-1 cursor-pointer"
               >
                 ← Kembali ke Beranda Game
               </button>
 
-              <span className="text-xs font-black uppercase tracking-wider bg-rose-100 text-rose-800 px-3 py-1 rounded-full border border-rose-200">
+              <span className="text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 px-3 py-1 rounded-full border border-rose-400/30">
                 Mode: {selectedMode.toUpperCase()}
               </span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-black text-neutral-900">
+            <h2 className="text-xl sm:text-3xl font-black text-white">
               Pilih Kelompok Huruf
             </h2>
-            <p className="text-neutral-600 text-sm sm:text-base mt-1">
+            <p className="text-white/80 text-xs sm:text-sm mt-1">
               Mulai dari huruf Vokal A-I-U-E-O hingga menguasai seluruh baris konsonan.
             </p>
 
             {/* Tab switch: Hiragana vs Katakana */}
-            <div className="flex bg-neutral-100 p-1 rounded-2xl mt-4">
+            <div className="flex bg-white/10 p-1 rounded-2xl mt-4 border border-white/15">
               <button
                 id="btn-tab-hira"
                 onClick={() => setActiveTab('hiragana')}
-                className={`flex-1 py-2.5 rounded-xl font-black text-sm transition-all cursor-pointer ${
+                className={`flex-1 py-2 rounded-xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
                   activeTab === 'hiragana'
-                    ? 'bg-white text-rose-600 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-white/70 hover:text-white'
                 }`}
               >
                 🌸 Hiragana
@@ -572,10 +586,10 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
               <button
                 id="btn-tab-kata"
                 onClick={() => setActiveTab('katakana')}
-                className={`flex-1 py-2.5 rounded-xl font-black text-sm transition-all cursor-pointer ${
+                className={`flex-1 py-2 rounded-xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
                   activeTab === 'katakana'
-                    ? 'bg-white text-rose-600 shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-white/70 hover:text-white'
                 }`}
               >
                 ⚡ Katakana
@@ -584,7 +598,7 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
           </div>
 
           {/* Group List Cards */}
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             {KANA_GROUPS.filter((g) => g.type === activeTab).map((group, idx) => {
               // Group 1 is unlocked by default; others unlocked when previous group is completed
               const prevGroup = KANA_GROUPS.find((g) => g.type === activeTab && g.order === group.order - 1);
@@ -605,50 +619,50 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
               return (
                 <div
                   key={group.id}
-                  className={`bg-white/90 backdrop-blur-md rounded-3xl p-5 sm:p-6 border transition-all ${
+                  className={`cinematic-content-card rounded-3xl p-5 sm:p-6 transition-all ${
                     isUnlocked
-                      ? 'border-white/80 shadow-lg hover:shadow-xl'
-                      : 'border-neutral-200 opacity-60'
+                      ? 'shadow-lg hover:border-white/30'
+                      : 'opacity-50'
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black uppercase tracking-wider text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-md">
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded-md border border-rose-400/30">
                           {group.name}
                         </span>
                         {isCompleted && (
-                          <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <span className="text-[10px] sm:text-xs font-extrabold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-400/30">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Selesai</span>
                           </span>
                         )}
                         {isBossDefeated && (
-                          <span className="text-xs font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] sm:text-xs font-extrabold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-400/30">
                             👑 Bos Kalah
                           </span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl sm:text-4xl font-black font-japanese text-neutral-900 tracking-wide">
+                        <span className="text-2xl sm:text-3xl font-black font-japanese text-white tracking-wide">
                           {group.title}
                         </span>
                       </div>
 
-                      <p className="text-xs sm:text-sm text-neutral-600 font-medium">
+                      <p className="text-xs text-white/75 font-medium">
                         {group.description}
                       </p>
 
                       {/* Progress Bar */}
                       <div className="flex items-center gap-3 pt-1">
-                        <div className="w-36 bg-neutral-100 rounded-full h-2 overflow-hidden border border-neutral-200">
+                        <div className="w-32 sm:w-36 bg-white/10 rounded-full h-1.5 overflow-hidden border border-white/15">
                           <div
                             className="h-full bg-gradient-to-r from-rose-500 to-amber-500 rounded-full transition-all"
                             style={{ width: `${avgStrength}%` }}
                           />
                         </div>
-                        <span className="text-xs font-bold text-neutral-600">
+                        <span className="text-[11px] font-bold text-white/70">
                           {avgStrength}% Hafal
                         </span>
                       </div>
@@ -661,9 +675,9 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
                           <button
                             id={`btn-play-group-${group.id}`}
                             onClick={() => handleSelectGroupForBattle(group, selectedMode)}
-                            className="flex-1 sm:flex-initial px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm sm:text-base shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-95"
+                            className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-transform active:scale-95"
                           >
-                            <Play className="w-4 h-4 fill-white" />
+                            <Play className="w-3.5 h-3.5 fill-white" />
                             <span>MULAI BATTLE</span>
                           </button>
 
@@ -671,14 +685,14 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
                           <button
                             id={`btn-boss-group-${group.id}`}
                             onClick={() => handleSelectGroupForBattle(group, 'boss')}
-                            className="px-4 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors border border-purple-200"
+                            className="px-3.5 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors border border-purple-400/30"
                             title="Tantang Bos Ujian Hafalan"
                           >
                             <span>👹 Bos Memori</span>
                           </button>
                         </>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-xs text-neutral-500 bg-neutral-100 px-3 py-2 rounded-xl border border-neutral-200">
+                        <div className="flex items-center gap-1.5 text-xs text-white/50 bg-white/10 px-3 py-2 rounded-xl border border-white/15">
                           <Lock className="w-4 h-4" />
                           <span>Selesaikan kelompok sebelumnya</span>
                         </div>
@@ -765,4 +779,4 @@ export const MemoryBattleView: React.FC<MemoryBattleViewProps> = ({
       )}
     </div>
   );
-};
+});

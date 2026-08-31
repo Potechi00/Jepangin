@@ -1,4 +1,4 @@
-export type NavigationTab = 'beranda' | 'belajar' | 'latihan' | 'progress' | 'profil' | 'battle';
+export type NavigationTab = 'beranda' | 'belajar' | 'latihan' | 'progress' | 'profil' | 'battle' | 'yomeru';
 
 export interface LessonItem {
   id: string;

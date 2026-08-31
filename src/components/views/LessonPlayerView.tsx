@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import confetti from 'canvas-confetti';
 import { ArrowLeft, Volume2, CheckCircle2, XCircle, ArrowRight, RotateCcw, Sparkles, Trophy, Home } from 'lucide-react';
 import { Lesson, CourseModule, UserProgress } from '../../types';
@@ -14,7 +14,7 @@ interface LessonPlayerViewProps {
   onStartNextLesson: (nextLessonId: string) => void;
 }
 
-export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
+export const LessonPlayerView: React.FC<LessonPlayerViewProps> = memo(({
   course,
   lesson,
   progress,
@@ -22,7 +22,6 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
   onBack,
   onStartNextLesson,
 }) => {
-  // Step type: 'item' (learning vocabulary/character) or 'quiz' (testing) or 'complete'
   const [phase, setPhase] = useState<'study' | 'quiz' | 'complete'>('study');
   const [currentItemIdx, setCurrentItemIdx] = useState(0);
   const [currentQuizIdx, setCurrentQuizIdx] = useState(0);
@@ -63,7 +62,6 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
     if (currentItemIdx < lesson.items.length - 1) {
       setCurrentItemIdx(prev => prev + 1);
     } else {
-      // Finished all items -> move to Quiz Phase if quizzes exist
       if (lesson.quizzes.length > 0) {
         setPhase('quiz');
         setCurrentQuizIdx(0);
@@ -111,14 +109,12 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
       setSelectedAnswer(null);
       setIsAnswerSubmitted(false);
     } else {
-      // All quizzes completed!
       setPhase('complete');
     }
   };
 
   const nextLessonId = getNextLessonId(lesson.id);
 
-  // Total steps for progress bar calculation
   const totalStudySteps = lesson.items.length;
   const totalQuizSteps = lesson.quizzes.length;
   const totalSteps = totalStudySteps + totalQuizSteps;
@@ -132,20 +128,20 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
   const progressPercentage = Math.round((currentStepNumber / totalSteps) * 100);
 
   return (
-    <div className="max-w-2xl mx-auto pb-16 animate-fade-in">
-      {/* 1. TOP HEADER & LINEAR PROGRESS BAR */}
-      <div className="bg-white/85 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/60 shadow-md mb-6">
-        <div className="flex items-center justify-between gap-3 mb-3">
+    <div className="max-w-2xl mx-auto pb-16 animate-fade-in select-none">
+      {/* 1. TOP HEADER HUD & PROGRESS BAR */}
+      <div className="cinematic-floating-card rounded-2xl p-3.5 sm:p-4 mb-5">
+        <div className="flex items-center justify-between gap-3 mb-2.5">
           <button
             id="btn-back-to-course-list"
             onClick={onBack}
-            className="flex items-center gap-1.5 text-neutral-700 hover:text-rose-600 font-bold text-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-white/80 hover:text-white font-extrabold text-xs sm:text-sm transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 text-rose-400" />
             <span>Kembali</span>
           </button>
 
-          <span className="text-xs sm:text-sm font-extrabold text-neutral-700">
+          <span className="text-xs sm:text-sm font-black text-white">
             {phase === 'study' && `Materi ${currentItemIdx + 1} dari ${lesson.items.length}`}
             {phase === 'quiz' && `Latihan ${currentQuizIdx + 1} dari ${lesson.quizzes.length}`}
             {phase === 'complete' && 'Selesai! 🎉'}
@@ -153,9 +149,9 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
         </div>
 
         {/* Progress Bar */}
-        <div className="bg-white/60 rounded-full h-3 overflow-hidden p-0.5 border border-neutral-300">
+        <div className="bg-white/10 rounded-full h-2.5 overflow-hidden p-0.5 border border-white/15">
           <div
-            className="bg-gradient-to-r from-rose-500 to-red-600 h-full rounded-full transition-all duration-300 ease-out"
+            className="bg-gradient-to-r from-rose-500 to-red-500 h-full rounded-full transition-all duration-300 ease-out"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
@@ -163,49 +159,49 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
 
       {/* 2. PHASE 1: STUDY ITEMS */}
       {phase === 'study' && currentItem && (
-        <div className="space-y-6">
-          <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-white/70 p-6 sm:p-10 shadow-xl text-center relative overflow-hidden">
-            <div className="inline-flex items-center gap-2 bg-rose-100/90 text-rose-800 font-extrabold text-xs sm:text-sm px-3.5 py-1 rounded-full mb-6 border border-rose-200">
+        <div className="space-y-4">
+          <div className="cinematic-content-card rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden shadow-xl">
+            <div className="inline-flex items-center gap-2 bg-rose-500/20 text-rose-300 font-black text-xs sm:text-sm px-3.5 py-1 rounded-full mb-4 border border-rose-400/30">
               <span>{course.title}</span>
               <span>•</span>
               <span>{lesson.title}</span>
             </div>
 
             {/* Giant Japanese Character / Word Display */}
-            <div className="my-4">
-              <span className="text-7xl sm:text-9xl font-black text-neutral-900 tracking-wider block drop-shadow-xs">
+            <div className="my-3">
+              <span className="text-7xl sm:text-8xl font-black text-white tracking-wider block drop-shadow-md">
                 {currentItem.japanese}
               </span>
-              <span className="text-2xl sm:text-3xl font-extrabold text-rose-600 block mt-2">
+              <span className="text-2xl sm:text-3xl font-black text-rose-400 block mt-2">
                 "{currentItem.romaji}"
               </span>
             </div>
 
             {/* Big Audio Play Button */}
-            <div className="my-6">
+            <div className="my-5">
               <button
                 id={`btn-listen-sound-${currentItem.id}`}
                 onClick={() => speakJapanese(currentItem.japanese)}
-                className="inline-flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-rose-50/90 hover:bg-rose-100 text-rose-700 border-2 border-rose-200 font-extrabold text-base transition-all transform hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-black text-sm sm:text-base transition-all transform hover:scale-105 active:scale-95 cursor-pointer shadow-md"
               >
-                <Volume2 className="w-6 h-6 text-rose-600" />
+                <Volume2 className="w-5 h-5 text-rose-400" />
                 <span>Dengar Pengucapan 🔊</span>
               </button>
             </div>
 
             {/* Indonesian Meaning & Notes */}
-            <div className="bg-white/70 backdrop-blur-xs rounded-2xl p-5 border border-neutral-200/80 text-left mt-6 space-y-3">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/5 border border-white/10 text-left space-y-3">
               <div>
-                <span className="text-xs font-bold uppercase text-neutral-500 block">Arti / Penjelasan</span>
-                <p className="text-base sm:text-lg font-bold text-neutral-900 mt-0.5">
+                <span className="text-[10px] font-black uppercase text-white/50 block tracking-wider">Arti / Penjelasan</span>
+                <p className="text-base sm:text-lg font-black text-white mt-0.5">
                   {currentItem.indonesian}
                 </p>
               </div>
 
               {currentItem.notes && (
-                <div className="pt-2 border-t border-neutral-200">
-                  <span className="text-xs font-bold uppercase text-neutral-500 block">Tips Mengingat</span>
-                  <p className="text-sm text-neutral-700 mt-0.5 italic">
+                <div className="pt-2 border-t border-white/10">
+                  <span className="text-[10px] font-black uppercase text-white/50 block tracking-wider">Tips Mengingat</span>
+                  <p className="text-xs sm:text-sm text-white/80 font-medium mt-0.5 italic">
                     💡 {currentItem.notes}
                   </p>
                 </div>
@@ -213,18 +209,18 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
 
               {/* Example Word */}
               {currentItem.exampleJapanese && (
-                <div className="pt-2 border-t border-neutral-200">
-                  <span className="text-xs font-bold uppercase text-neutral-500 block">Contoh Penggunaan Kata</span>
+                <div className="pt-2 border-t border-white/10">
+                  <span className="text-[10px] font-black uppercase text-white/50 block tracking-wider">Contoh Penggunaan Kata</span>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-sm sm:text-base font-bold text-neutral-900">
-                      <span className="text-rose-600 font-black">{currentItem.exampleJapanese}</span> ({currentItem.exampleRomaji}) = {currentItem.exampleIndonesian}
+                    <p className="text-xs sm:text-sm font-bold text-white">
+                      <span className="text-rose-400 font-black">{currentItem.exampleJapanese}</span> ({currentItem.exampleRomaji}) = {currentItem.exampleIndonesian}
                     </p>
                     <button
                       onClick={() => speakJapanese(currentItem.exampleJapanese || '')}
-                      className="p-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 cursor-pointer"
+                      className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 cursor-pointer"
                       title="Dengar contoh suara"
                     >
-                      <Volume2 className="w-4 h-4" />
+                      <Volume2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -232,13 +228,13 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
             </div>
           </div>
 
-          {/* Navigation Controls: PREV and NEXT BUTTON */}
+          {/* Navigation Controls */}
           <div className="flex items-center gap-3">
             {currentItemIdx > 0 && (
               <button
                 id="btn-prev-item"
                 onClick={handlePrevItem}
-                className="w-1/3 py-4 px-4 rounded-2xl bg-white/80 backdrop-blur-md hover:bg-white text-neutral-800 font-bold text-base transition-all cursor-pointer border border-white/60 shadow-md"
+                className="w-1/3 py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-black text-sm sm:text-base transition-all cursor-pointer border border-white/15"
               >
                 Kembali
               </button>
@@ -247,12 +243,12 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
             <button
               id="btn-next-item"
               onClick={handleNextItem}
-              className={`flex-1 py-4 sm:py-5 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-black text-lg sm:text-xl shadow-lg shadow-rose-600/30 flex items-center justify-center gap-3 transition-all cursor-pointer ${
+              className={`flex-1 py-3.5 sm:py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-base sm:text-lg shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 currentItemIdx === 0 ? 'w-full' : ''
               }`}
             >
               <span>{currentItemIdx === lesson.items.length - 1 ? 'MULAI LATIHAN SOAL' : 'BERIKUTNYA'}</span>
-              <ArrowRight className="w-6 h-6" />
+              <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -260,55 +256,52 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
 
       {/* 3. PHASE 2: QUIZZES */}
       {phase === 'quiz' && currentQuiz && (
-        <div className="space-y-6">
-          <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-white/70 p-6 sm:p-8 shadow-xl">
-            <span className="inline-block bg-amber-100 text-amber-900 font-extrabold text-xs px-3 py-1 rounded-md mb-4 border border-amber-200">
+        <div className="space-y-4">
+          <div className="cinematic-content-card rounded-3xl p-5 sm:p-7 shadow-xl">
+            <span className="inline-block bg-amber-400/20 text-amber-300 font-black text-xs px-3 py-1 rounded-md mb-3 border border-amber-400/30">
               Latihan Soal #{currentQuizIdx + 1}
             </span>
 
-            {/* Question Title */}
-            <h2 className="text-xl sm:text-2xl font-black text-neutral-900 leading-snug">
+            <h2 className="text-lg sm:text-xl font-black text-white leading-snug">
               {currentQuiz.question}
             </h2>
 
-            {/* Prompt Display or Audio Prompt */}
             {currentQuiz.promptDisplay && (
-              <div className="my-6 py-6 bg-white/60 backdrop-blur-xs rounded-2xl text-center border border-neutral-200/80">
-                <span className="text-5xl sm:text-6xl font-black text-neutral-900">
+              <div className="my-5 py-5 bg-white/5 rounded-2xl text-center border border-white/10">
+                <span className="text-5xl sm:text-6xl font-black text-white drop-shadow-sm">
                   {currentQuiz.promptDisplay}
                 </span>
               </div>
             )}
 
             {currentQuiz.promptAudio && (
-              <div className="my-6 flex justify-center">
+              <div className="my-4 flex justify-center">
                 <button
                   id="btn-play-quiz-audio"
                   onClick={() => speakJapanese(currentQuiz.promptAudio || '')}
-                  className="px-6 py-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-base flex items-center gap-3 shadow-md shadow-rose-600/20 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
+                  className="px-5 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm sm:text-base flex items-center gap-2 shadow-md shadow-rose-600/25 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
                 >
-                  <Volume2 className="w-6 h-6" />
+                  <Volume2 className="w-5 h-5" />
                   <span>Putar Suara 🔊</span>
                 </button>
               </div>
             )}
 
-            {/* Multiple Choice Options Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5">
               {currentQuiz.options?.map((option, idx) => {
                 const isSelected = selectedAnswer === option;
-                let optionStyle = 'bg-white/80 hover:bg-rose-50 border-neutral-200/90 text-neutral-800';
+                let optionStyle = 'bg-white/5 hover:bg-white/15 border-white/10 text-white';
 
                 if (isAnswerSubmitted) {
                   if (option === currentQuiz.correctAnswer) {
-                    optionStyle = 'bg-emerald-50/95 border-emerald-500 text-emerald-900 font-black';
+                    optionStyle = 'bg-emerald-500/25 border-emerald-400 text-emerald-300 font-black shadow-xs';
                   } else if (isSelected && !isCorrect) {
-                    optionStyle = 'bg-rose-50/95 border-rose-500 text-rose-900 line-through';
+                    optionStyle = 'bg-rose-500/25 border-rose-400 text-rose-300 line-through';
                   } else {
-                    optionStyle = 'bg-white/50 border-neutral-200 text-neutral-400 opacity-60';
+                    optionStyle = 'bg-white/5 border-white/10 text-white/30 opacity-50';
                   }
                 } else if (isSelected) {
-                  optionStyle = 'bg-rose-100/90 border-rose-600 text-rose-900 font-extrabold shadow-sm';
+                  optionStyle = 'bg-rose-500/30 border-rose-400 text-white font-black shadow-xs';
                 }
 
                 return (
@@ -317,59 +310,57 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
                     id={`quiz-option-${idx}`}
                     onClick={() => handleSelectOption(option)}
                     disabled={isAnswerSubmitted}
-                    className={`p-4 sm:p-5 rounded-2xl border-2 text-left font-bold text-lg transition-all flex items-center justify-between cursor-pointer min-h-[64px] ${optionStyle}`}
+                    className={`p-3.5 sm:p-4 rounded-2xl border text-left font-bold text-base sm:text-lg transition-all flex items-center justify-between cursor-pointer min-h-[56px] ${optionStyle}`}
                   >
                     <span>{option}</span>
                     {isAnswerSubmitted && option === currentQuiz.correctAnswer && (
-                      <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     )}
                     {isAnswerSubmitted && isSelected && !isCorrect && (
-                      <XCircle className="w-6 h-6 text-rose-600 shrink-0" />
+                      <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
                     )}
                   </button>
                 );
               })}
             </div>
 
-            {/* Explanation Box on Answer Submission */}
             {isAnswerSubmitted && (
               <div
-                className={`mt-6 p-5 rounded-2xl border ${
+                className={`mt-4 p-4 rounded-2xl border ${
                   isCorrect
-                    ? 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
-                    : 'bg-rose-50/90 border-rose-200 text-rose-900'
+                    ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-200'
+                    : 'bg-rose-500/15 border-rose-400/30 text-rose-200'
                 }`}
               >
-                <div className="flex items-center gap-2 font-black text-base">
+                <div className="flex items-center gap-2 font-black text-sm sm:text-base">
                   {isCorrect ? (
                     <>
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       <span>Luar biasa, jawabanmu BENAR! 🎉</span>
                     </>
                   ) : (
                     <>
-                      <XCircle className="w-5 h-5 text-rose-600" />
+                      <XCircle className="w-4 h-4 text-rose-400" />
                       <span>Jawaban kurang tepat. Kunci: {currentQuiz.correctAnswer}</span>
                     </>
                   )}
                 </div>
-                <p className="text-sm mt-1 leading-relaxed opacity-90">
+                <p className="text-xs sm:text-sm mt-1 leading-relaxed opacity-90 font-medium">
                   {currentQuiz.explanation}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Primary Action Button */}
           {!isAnswerSubmitted ? (
             <button
               id="btn-submit-answer"
               onClick={handleSubmitAnswer}
               disabled={!selectedAnswer}
-              className={`w-full py-4 sm:py-5 px-6 rounded-2xl font-black text-lg sm:text-xl transition-all flex items-center justify-center gap-3 ${
+              className={`w-full py-3.5 sm:py-4 px-6 rounded-2xl font-black text-base sm:text-lg transition-all flex items-center justify-center gap-2 ${
                 selectedAnswer
-                  ? 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-lg shadow-rose-600/30 cursor-pointer'
-                  : 'bg-white/40 text-neutral-400 cursor-not-allowed border border-white/40'
+                  ? 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-lg shadow-rose-600/30 cursor-pointer'
+                  : 'bg-white/10 text-white/40 cursor-not-allowed border border-white/10'
               }`}
             >
               <span>PERIKSA JAWABAN</span>
@@ -378,10 +369,10 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
             <button
               id="btn-next-quiz"
               onClick={handleNextQuiz}
-              className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-black text-lg sm:text-xl shadow-lg shadow-rose-600/30 flex items-center justify-center gap-3 transition-all cursor-pointer"
+              className="w-full py-3.5 sm:py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-base sm:text-lg shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <span>{currentQuizIdx === lesson.quizzes.length - 1 ? 'LIHAT HASIL BELAJAR' : 'SOAL BERIKUTNYA'}</span>
-              <ArrowRight className="w-6 h-6" />
+              <ArrowRight className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -389,49 +380,49 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
 
       {/* 4. PHASE 3: LESSON COMPLETED CELEBRATION */}
       {phase === 'complete' && (
-        <div className="bg-white/90 backdrop-blur-md rounded-3xl border-2 border-emerald-400 p-8 sm:p-12 text-center shadow-xl shadow-emerald-500/10 space-y-6">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-            <Trophy className="w-12 h-12 sm:w-14 sm:h-14" />
+        <div className="cinematic-focus-card rounded-3xl border border-emerald-400/40 p-6 sm:p-10 text-center shadow-2xl space-y-5">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-400/30">
+            <Trophy className="w-10 h-10 sm:w-12 sm:h-12" />
           </div>
 
           <div>
-            <div className="inline-block bg-emerald-100 text-emerald-800 font-black text-xs px-3 py-1 rounded-md mb-2">
+            <div className="inline-block bg-emerald-500/20 text-emerald-300 font-black text-xs px-3 py-1 rounded-md mb-2 border border-emerald-400/30">
               PELAJARAN SELESAI
             </div>
-            <h2 className="text-2xl sm:text-4xl font-black text-neutral-900">
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
               Hebat Sekali! おめでとう!
             </h2>
-            <p className="text-neutral-600 text-sm sm:text-base mt-2 max-w-md mx-auto">
+            <p className="text-white/80 text-xs sm:text-sm mt-1 max-w-md mx-auto font-medium">
               Kamu telah menyelesaikan <strong>{lesson.title}</strong> dengan sangat baik.
             </p>
           </div>
 
           {/* Earned Rewards */}
-          <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
-            <div className="bg-rose-50/90 border border-rose-200 rounded-2xl p-4">
-              <span className="text-xs text-rose-700 font-bold block">XP Didapat</span>
-              <span className="text-2xl font-black text-rose-600 mt-0.5">+{lesson.xpReward} XP</span>
+          <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+            <div className="bg-rose-500/20 border border-rose-400/30 rounded-2xl p-3.5">
+              <span className="text-xs text-rose-300 font-extrabold block">XP Didapat</span>
+              <span className="text-xl sm:text-2xl font-black text-white mt-0.5">+{lesson.xpReward} XP</span>
             </div>
-            <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4">
-              <span className="text-xs text-amber-700 font-bold block">Streak Bertambah</span>
-              <span className="text-2xl font-black text-amber-600 mt-0.5">🔥 1 Hari</span>
+            <div className="bg-amber-400/20 border border-amber-400/30 rounded-2xl p-3.5">
+              <span className="text-xs text-amber-300 font-extrabold block">Streak Bertambah</span>
+              <span className="text-xl sm:text-2xl font-black text-white mt-0.5">🔥 1 Hari</span>
             </div>
           </div>
 
           {/* ACTION BUTTONS */}
-          <div className="space-y-3 pt-4">
+          <div className="space-y-2.5 pt-2">
             {nextLessonId ? (
               <button
                 id="btn-continue-next-lesson"
                 onClick={() => onStartNextLesson(nextLessonId)}
-                className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-black text-lg sm:text-xl shadow-lg shadow-rose-600/30 flex items-center justify-center gap-3 transition-all cursor-pointer"
+                className="w-full py-3.5 sm:py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-base sm:text-lg shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>LANJUTKAN KE MATERI BERIKUTNYA</span>
-                <ArrowRight className="w-6 h-6" />
+                <ArrowRight className="w-5 h-5" />
               </button>
             ) : null}
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <button
                 id="btn-retry-lesson"
                 onClick={() => {
@@ -441,16 +432,16 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
                   setSelectedAnswer(null);
                   setIsAnswerSubmitted(false);
                 }}
-                className="flex-1 py-3.5 px-4 rounded-xl bg-white/80 hover:bg-white text-neutral-800 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors border border-neutral-200"
+                className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-white/15"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-4 h-4 text-rose-400" />
                 <span>Ulangi Pelajaran</span>
               </button>
 
               <button
                 id="btn-back-to-home"
                 onClick={onBack}
-                className="flex-1 py-3.5 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                className="flex-1 py-3 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-white/20"
               >
                 <Home className="w-4 h-4" />
                 <span>Kembali ke Beranda</span>
@@ -461,4 +452,4 @@ export const LessonPlayerView: React.FC<LessonPlayerViewProps> = ({
       )}
     </div>
   );
-};
+});

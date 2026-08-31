@@ -1,6 +1,7 @@
 import { UserProgress } from '../types';
 import { GameProgressState } from '../game/gameStorage';
 import { KanaMemoryRecord } from '../game/types';
+import { ReadingProgressState } from '../game/readingTypes';
 
 export type AuthProviderType = 'google' | 'anonymous';
 
@@ -20,5 +21,6 @@ export interface UserCloudData {
   progress: UserProgress;
   gameProgress: GameProgressState;
   kanaRecords: Record<string, KanaMemoryRecord>;
+  readingProgress?: ReadingProgressState;
   updatedAt: string;
 }

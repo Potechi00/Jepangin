@@ -4,6 +4,8 @@ import { UserProgress } from '../types';
 import { GameProgressState, loadGameProgress, saveGameProgress } from '../game/gameStorage';
 import { KanaMemoryRecord } from '../game/types';
 import { loadKanaMemoryRecords, saveKanaMemoryRecords } from '../game/gameStorage';
+import { ReadingProgressState } from '../game/readingTypes';
+import { loadReadingProgressFromStorage, saveReadingProgressToStorage } from '../game/readingStorage';
 import { INITIAL_PROGRESS, loadUserProgress, saveUserProgress } from '../utils/storage';
 import {
   auth,
@@ -19,6 +21,8 @@ import {
   setDoc,
   testFirestoreConnection,
   FirebaseUser,
+  OperationType,
+  handleFirestoreError,
 } from './firebase';
 import {
   generateGuestId,
@@ -46,6 +50,8 @@ interface AuthContextType {
   setUserProgress: React.Dispatch<React.SetStateAction<UserProgress>>;
   gameProgress: GameProgressState;
   setGameProgress: React.Dispatch<React.SetStateAction<GameProgressState>>;
+  readingProgress: ReadingProgressState;
+  setReadingProgress: React.Dispatch<React.SetStateAction<ReadingProgressState>>;
   kanaRecords: Record<string, KanaMemoryRecord>;
   setKanaRecords: React.Dispatch<React.SetStateAction<Record<string, KanaMemoryRecord>>>;
   triggerManualSave: () => void;
@@ -84,6 +90,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // App Progress States
   const [userProgress, setUserProgress] = useState<UserProgress>(INITIAL_PROGRESS);
   const [gameProgress, setGameProgress] = useState<GameProgressState>(() => loadGameProgress());
+  const [readingProgress, setReadingProgress] = useState<ReadingProgressState>(() => loadReadingProgressFromStorage());
   const [kanaRecords, setKanaRecords] = useState<Record<string, KanaMemoryRecord>>(() => loadKanaMemoryRecords());
 
   // Ref to prevent initial state overwriting Firestore data
@@ -94,7 +101,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     currentUser: UserProfile,
     uProgress: UserProgress,
     gProgress: GameProgressState,
-    kRecords: Record<string, KanaMemoryRecord>
+    kRecords: Record<string, KanaMemoryRecord>,
+    rProgress: ReadingProgressState
   ) => {
     setIsSaving(true);
     setCloudSyncStatus('saving');
@@ -105,6 +113,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       progress: uProgress,
       gameProgress: gProgress,
       kanaRecords: kRecords,
+      readingProgress: rProgress,
       updatedAt: new Date().toISOString(),
     };
 
@@ -113,84 +122,126 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     saveUserProgress(uProgress);
     saveGameProgress(gProgress);
     saveKanaMemoryRecords(kRecords);
+    saveReadingProgressToStorage(rProgress);
 
-    // 2. Cloud Firestore persistence
-    try {
-      const userDocRef = doc(db, 'users', currentUser.uid);
-      await setDoc(userDocRef, payload, { merge: true });
+    // 2. Cloud Firestore persistence (only when active Firebase Auth matches user UID)
+    if (auth.currentUser && auth.currentUser.uid === currentUser.uid) {
+      try {
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userDocRef, payload, { merge: true });
+        setCloudSyncStatus('synced');
+      } catch (err: any) {
+        if (err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.includes('permission'))) {
+          handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}`);
+        }
+        console.info('Firestore sync operating in offline/local cache mode:', err?.message || err);
+        setCloudSyncStatus('offline');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
       setCloudSyncStatus('synced');
-    } catch (err) {
-      console.warn('Firestore sync note (offline fallback active):', err);
-      setCloudSyncStatus('offline');
-    } finally {
       setIsSaving(false);
     }
   }, []);
 
-  // Fetch or initialize user data from Cloud Firestore
+  // Fetch or initialize user data from Cloud Firestore with local-first instant readiness
   const loadUserDataFromFirestoreOrLocal = useCallback(async (profile: UserProfile) => {
-    try {
-      const userDocRef = doc(db, 'users', profile.uid);
-      const docSnap = await getDoc(userDocRef);
+    // 1. Immediately hydrate from local scoped cache to eliminate UI freeze
+    const localScoped = loadUserScopedData(profile.uid);
+    if (localScoped) {
+      if (localScoped.progress) setUserProgress(localScoped.progress);
+      if (localScoped.gameProgress) setGameProgress(localScoped.gameProgress);
+      if (localScoped.kanaRecords) setKanaRecords(localScoped.kanaRecords);
+      if (localScoped.readingProgress) setReadingProgress(localScoped.readingProgress);
+    } else {
+      const initialProg: UserProgress = {
+        ...INITIAL_PROGRESS,
+        userName: profile.displayName || 'Teman Belajar',
+      };
+      const initialGame = loadGameProgress();
+      const initialKana = loadKanaMemoryRecords();
+      const initialReading = loadReadingProgressFromStorage();
 
-      if (docSnap.exists()) {
-        const cloudData = docSnap.data() as UserCloudData;
-        if (cloudData.progress) {
-          setUserProgress(cloudData.progress);
-        }
-        if (cloudData.gameProgress) {
-          setGameProgress(cloudData.gameProgress);
-        }
-        if (cloudData.kanaRecords) {
-          setKanaRecords(cloudData.kanaRecords);
-        }
-        // Cache locally
-        saveUserScopedData(cloudData);
-        saveUserProgress(cloudData.progress);
-        saveGameProgress(cloudData.gameProgress);
-        saveKanaMemoryRecords(cloudData.kanaRecords);
-      } else {
-        // Check if there is local scoped data for this user ID
-        const localScoped = loadUserScopedData(profile.uid);
-        if (localScoped) {
-          setUserProgress(localScoped.progress);
-          setGameProgress(localScoped.gameProgress);
-          setKanaRecords(localScoped.kanaRecords);
-          // Push local data up to Firestore
-          await persistActiveUser(profile, localScoped.progress, localScoped.gameProgress, localScoped.kanaRecords);
+      setUserProgress(initialProg);
+      setGameProgress(initialGame);
+      setKanaRecords(initialKana);
+      setReadingProgress(initialReading);
+    }
+    isHydratedRef.current = true;
+
+    // 2. Query Firestore in background and sync ONLY if user is authenticated with Firebase Auth
+    if (auth.currentUser && auth.currentUser.uid === profile.uid) {
+      try {
+        const userDocRef = doc(db, 'users', profile.uid);
+        const docSnap = await getDoc(userDocRef);
+
+        if (docSnap.exists()) {
+          const cloudData = docSnap.data() as UserCloudData;
+          if (cloudData.progress) {
+            setUserProgress(cloudData.progress);
+          }
+          if (cloudData.gameProgress) {
+            setGameProgress(cloudData.gameProgress);
+          }
+          if (cloudData.kanaRecords) {
+            setKanaRecords(cloudData.kanaRecords);
+          }
+          if (cloudData.readingProgress) {
+            setReadingProgress(cloudData.readingProgress);
+          }
+          // Update local cache
+          saveUserScopedData(cloudData);
+          saveUserProgress(cloudData.progress);
+          saveGameProgress(cloudData.gameProgress);
+          saveKanaMemoryRecords(cloudData.kanaRecords);
+          if (cloudData.readingProgress) {
+            saveReadingProgressToStorage(cloudData.readingProgress);
+          }
+          setCloudSyncStatus('synced');
         } else {
-          // New user initial profile
-          const initialProg: UserProgress = {
-            ...INITIAL_PROGRESS,
-            userName: profile.displayName || 'Teman Belajar',
-          };
-          const initialGame = loadGameProgress();
-          const initialKana = loadKanaMemoryRecords();
+          // Document does not exist yet on Firestore: initialize with existing or initial state
+          if (localScoped) {
+            await persistActiveUser(
+              profile,
+              localScoped.progress,
+              localScoped.gameProgress,
+              localScoped.kanaRecords,
+              localScoped.readingProgress || loadReadingProgressFromStorage()
+            );
+          } else {
+            const initialProg: UserProgress = {
+              ...INITIAL_PROGRESS,
+              userName: profile.displayName || 'Teman Belajar',
+            };
+            const initialGame = loadGameProgress();
+            const initialKana = loadKanaMemoryRecords();
+            const initialReading = loadReadingProgressFromStorage();
 
-          setUserProgress(initialProg);
-          setGameProgress(initialGame);
-          setKanaRecords(initialKana);
+            setUserProgress(initialProg);
+            setGameProgress(initialGame);
+            setKanaRecords(initialKana);
+            setReadingProgress(initialReading);
 
-          await persistActiveUser(profile, initialProg, initialGame, initialKana);
+            await persistActiveUser(profile, initialProg, initialGame, initialKana, initialReading);
+          }
         }
+      } catch (err: any) {
+        if (err?.code === 'permission-denied' || (typeof err?.message === 'string' && err.message.includes('permission'))) {
+          handleFirestoreError(err, OperationType.GET, `users/${profile.uid}`);
+        }
+        console.info('Firestore load operating in offline/local cache mode:', err?.message || err);
+        setCloudSyncStatus('offline');
       }
-    } catch (err) {
-      console.warn('Error fetching Firestore doc, using local cache:', err);
-      const localScoped = loadUserScopedData(profile.uid);
-      if (localScoped) {
-        setUserProgress(localScoped.progress);
-        setGameProgress(localScoped.gameProgress);
-        setKanaRecords(localScoped.kanaRecords);
-      }
-    } finally {
-      isHydratedRef.current = true;
+    } else {
+      setCloudSyncStatus('synced');
     }
   }, [persistActiveUser]);
 
   // Initial Auth & Firestore check
   useEffect(() => {
-    // 1. Check firestore connection
-    testFirestoreConnection();
+    // 1. Non-blocking firestore connection check
+    testFirestoreConnection().catch(() => {});
 
     // 2. Subscribe to Firebase Auth state
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
@@ -215,7 +266,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
       } catch (err) {
-        console.error('Auth state error:', err);
+        console.error('Auth state initialization notice:', err);
       } finally {
         setIsLoading(false);
       }
@@ -229,11 +280,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user || isLoading || !isHydratedRef.current) return;
 
     const timer = setTimeout(() => {
-      persistActiveUser(user, userProgress, gameProgress, kanaRecords);
+      persistActiveUser(user, userProgress, gameProgress, kanaRecords, readingProgress);
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [user, userProgress, gameProgress, kanaRecords, isLoading, persistActiveUser]);
+  }, [user, userProgress, gameProgress, kanaRecords, readingProgress, isLoading, persistActiveUser]);
 
   // Firebase Guest Login (Anonymous Auth)
   const loginWithGuest = async (): Promise<void> => {
@@ -265,15 +316,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
       const initialGame = loadGameProgress();
       const initialKana = loadKanaMemoryRecords();
+      const initialReading = loadReadingProgressFromStorage();
 
       setUser(guestProfile);
       setStoredSessionUser(guestProfile);
       setUserProgress(initialProg);
       setGameProgress(initialGame);
       setKanaRecords(initialKana);
+      setReadingProgress(initialReading);
       isHydratedRef.current = true;
 
-      await persistActiveUser(guestProfile, initialProg, initialGame, initialKana);
+      await persistActiveUser(guestProfile, initialProg, initialGame, initialKana, initialReading);
     } finally {
       setIsLoading(false);
     }
@@ -353,7 +406,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setStoredSessionUser(updatedUser);
 
       // Save preserved progress with updated Google profile directly to Firestore
-      await persistActiveUser(updatedUser, userProgress, gameProgress, kanaRecords);
+      await persistActiveUser(updatedUser, userProgress, gameProgress, kanaRecords, readingProgress);
 
       return {
         success: true,
@@ -374,7 +427,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       if (user) {
-        await persistActiveUser(user, userProgress, gameProgress, kanaRecords);
+        await persistActiveUser(user, userProgress, gameProgress, kanaRecords, readingProgress);
       }
       try {
         await signOut(auth);
@@ -398,20 +451,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const legacyProg = loadUserProgress();
       const legacyGame = loadGameProgress();
       const legacyKana = loadKanaMemoryRecords();
+      const legacyReading = loadReadingProgressFromStorage();
 
       setUserProgress(legacyProg);
       setGameProgress(legacyGame);
       setKanaRecords(legacyKana);
+      setReadingProgress(legacyReading);
 
       if (user) {
-        persistActiveUser(user, legacyProg, legacyGame, legacyKana);
+        persistActiveUser(user, legacyProg, legacyGame, legacyKana, legacyReading);
       }
     }
   };
 
   const triggerManualSave = () => {
     if (user) {
-      persistActiveUser(user, userProgress, gameProgress, kanaRecords);
+      persistActiveUser(user, userProgress, gameProgress, kanaRecords, readingProgress);
     }
   };
 
@@ -432,6 +487,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUserProgress,
         gameProgress,
         setGameProgress,
+        readingProgress,
+        setReadingProgress,
         kanaRecords,
         setKanaRecords,
         triggerManualSave,

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Play, CheckCircle, ArrowRight, Lock, Sparkles, BookOpen, Volume2 } from 'lucide-react';
-import { UserProgress, CourseModule } from '../../types';
+import React, { useState, memo } from 'react';
+import { Play, CheckCircle, ArrowRight, BookOpen, Volume2 } from 'lucide-react';
+import { UserProgress } from '../../types';
 import { COURSES } from '../../data/courses';
 import { speakJapanese } from '../../utils/audio';
 
@@ -9,7 +9,7 @@ interface LearnViewProps {
   onStartLesson: (lessonId: string) => void;
 }
 
-export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson }) => {
+export const LearnView: React.FC<LearnViewProps> = memo(({ progress, onStartLesson }) => {
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'huruf' | 'kosakata' | 'percakapan' | 'tatabahasa'>('all');
 
   const filteredCourses = selectedCategory === 'all'
@@ -17,24 +17,24 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
     : COURSES.filter(c => c.category === selectedCategory);
 
   return (
-    <div className="space-y-6 pb-12 animate-fade-in">
+    <div className="space-y-6 pb-12 animate-fade-in select-none">
       {/* 1. Header with clear context */}
-      <div className="bg-white/85 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white/60 shadow-lg">
-        <div className="flex items-center gap-3 text-rose-600 mb-2">
-          <BookOpen className="w-6 h-6" />
-          <span className="text-xs font-black uppercase tracking-wider bg-rose-100/90 text-rose-700 px-2.5 py-1 rounded-md border border-rose-200">
+      <div className="cinematic-content-card rounded-3xl p-6 sm:p-7 shadow-xl">
+        <div className="flex items-center gap-2.5 text-rose-300 mb-2">
+          <BookOpen className="w-5 h-5 text-rose-400" />
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 px-2.5 py-0.5 rounded-md border border-rose-400/30">
             Kurikulum Terstruktur
           </span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-neutral-900">
+        <h1 className="text-xl sm:text-3xl font-black text-white">
           Pilih Materi Belajar
         </h1>
-        <p className="text-neutral-700 text-sm sm:text-base mt-1 max-w-2xl font-medium">
-          Mulai dari huruf dasar Hiragana, kosakata sapaan harian, hingga percakapan praktis di Jepang. Pilih materi di bawah ini:
+        <p className="text-white/80 text-xs sm:text-sm mt-1 max-w-2xl font-medium">
+          Mulai dari huruf dasar Hiragana, kosakata sapaan harian, hingga percakapan praktis di Jepang.
         </p>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-neutral-200/60">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-5 pt-3 border-t border-white/10">
           {[
             { id: 'all', label: '🌟 Semua Materi' },
             { id: 'huruf', label: '🔤 Huruf (Hiragana & Katakana)' },
@@ -48,10 +48,10 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
                 key={tab.id}
                 id={`filter-tab-${tab.id}`}
                 onClick={() => setSelectedCategory(tab.id as any)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
-                    : 'bg-white/70 text-neutral-700 hover:bg-rose-50 hover:text-rose-700 border border-neutral-200/60'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20 border border-white/15'
                 }`}
               >
                 {tab.label}
@@ -62,9 +62,8 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
       </div>
 
       {/* 2. Course Cards Grid */}
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         {filteredCourses.map((course) => {
-          // Calculate completed lessons in this module
           const totalLessonsInModule = course.lessons.length;
           const completedInModule = course.lessons.filter(l => progress.completedLessonIds.includes(l.id)).length;
           const modulePercent = Math.round((completedInModule / totalLessonsInModule) * 100);
@@ -72,27 +71,27 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
           return (
             <div
               key={course.id}
-              className="bg-white/85 backdrop-blur-md rounded-3xl border border-white/60 p-6 sm:p-7 shadow-lg hover:border-rose-300 transition-colors"
+              className="cinematic-content-card rounded-3xl p-5 sm:p-7 shadow-xl transition-all"
             >
               {/* Module Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-neutral-200/50">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-100 to-rose-200 text-rose-700 border border-rose-300 flex items-center justify-center font-black text-2xl shadow-inner shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-300 border border-rose-400/30 flex items-center justify-center font-black text-2xl shadow-inner shrink-0">
                     {course.iconSymbol}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-rose-700 bg-rose-100/90 px-2 py-0.5 rounded-md border border-rose-200">
+                      <span className="text-[10px] sm:text-xs font-black text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded-md border border-rose-400/30">
                         {course.badge}
                       </span>
-                      <span className="text-xs font-semibold text-neutral-500">
+                      <span className="text-xs font-bold text-white/70">
                         {completedInModule}/{totalLessonsInModule} Selesai ({modulePercent}%)
                       </span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-neutral-900 mt-1">
+                    <h2 className="text-lg sm:text-2xl font-black text-white mt-1">
                       {course.title}
                     </h2>
-                    <p className="text-sm text-neutral-600 mt-0.5">
+                    <p className="text-xs sm:text-sm text-white/75 font-medium mt-0.5">
                       {course.subtitle}
                     </p>
                   </div>
@@ -100,7 +99,7 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
               </div>
 
               {/* Lessons List in Module */}
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 space-y-2.5">
                 {course.lessons.map((lesson, idx) => {
                   const isCompleted = progress.completedLessonIds.includes(lesson.id);
                   const isCurrent = progress.activeLessonId === lesson.id;
@@ -108,26 +107,26 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
                   return (
                     <div
                       key={lesson.id}
-                      className={`rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                      className={`rounded-2xl p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                         isCompleted
-                          ? 'bg-emerald-50/80 backdrop-blur-sm border border-emerald-300 shadow-xs'
+                          ? 'bg-emerald-950/35 border border-emerald-400/35 shadow-xs'
                           : isCurrent
-                          ? 'bg-rose-50/85 backdrop-blur-sm border-2 border-rose-500 shadow-md'
-                          : 'bg-white/70 backdrop-blur-xs border border-neutral-200/70 hover:bg-white/95'
+                          ? 'bg-rose-950/45 border-2 border-rose-500 shadow-md'
+                          : 'cinematic-floating-card'
                       }`}
                     >
-                      <div className="flex items-start gap-3.5">
+                      <div className="flex items-start gap-3">
                         <div className="pt-0.5">
                           {isCompleted ? (
-                            <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                              <CheckCircle className="w-5 h-5" />
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
                           ) : (
                             <div
-                              className={`w-8 h-8 rounded-full font-black text-sm flex items-center justify-center ${
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full font-black text-xs sm:text-sm flex items-center justify-center ${
                                 isCurrent
                                   ? 'bg-rose-600 text-white shadow-xs'
-                                  : 'bg-neutral-200 text-neutral-600'
+                                  : 'bg-white/15 border border-white/25 text-white/80'
                               }`}
                             >
                               {idx + 1}
@@ -137,21 +136,21 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
 
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-extrabold text-neutral-900 text-base sm:text-lg">
+                            <h3 className="font-black text-white text-sm sm:text-base">
                               {lesson.title}
                             </h3>
                             {isCompleted && (
-                              <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
+                              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-black px-1.5 py-0.5 rounded-md">
                                 Tuntas ✅
                               </span>
                             )}
                           </div>
-                          <p className="text-xs sm:text-sm text-neutral-600 mt-1 leading-relaxed">
+                          <p className="text-xs text-white/70 font-medium mt-0.5 leading-relaxed">
                             {lesson.description}
                           </p>
 
                           {/* Quick Character Preview Badges */}
-                          <div className="flex flex-wrap gap-1.5 mt-2.5">
+                          <div className="flex flex-wrap gap-1 mt-2">
                             {lesson.items.slice(0, 5).map((item) => (
                               <button
                                 key={item.id}
@@ -160,11 +159,11 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
                                   speakJapanese(item.japanese);
                                 }}
                                 title="Klik untuk dengar suara"
-                                className="inline-flex items-center gap-1 bg-white/90 hover:bg-rose-100 border border-neutral-200 hover:border-rose-300 text-neutral-800 px-2 py-0.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                                className="inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 border border-white/20 text-white px-2 py-0.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer"
                               >
-                                <span className="text-rose-600 font-black">{item.japanese}</span>
-                                <span className="text-neutral-500 font-normal">({item.romaji})</span>
-                                <Volume2 className="w-3 h-3 text-neutral-400" />
+                                <span className="text-rose-300 font-black">{item.japanese}</span>
+                                <span className="text-white/70 font-semibold">({item.romaji})</span>
+                                <Volume2 className="w-3 h-3 text-white/50" />
                               </button>
                             ))}
                           </div>
@@ -175,24 +174,24 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
                       <button
                         id={`btn-lesson-${lesson.id}`}
                         onClick={() => onStartLesson(lesson.id)}
-                        className={`w-full sm:w-auto px-5 py-3 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 shrink-0 transition-all cursor-pointer ${
+                        className={`w-full sm:w-auto px-4 py-2.5 sm:px-5 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shrink-0 transition-all cursor-pointer ${
                           isCompleted
-                            ? 'bg-white hover:bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-xs'
+                            ? 'bg-white/15 hover:bg-white/25 text-emerald-300 border border-emerald-400/30 shadow-xs'
                             : isCurrent
-                            ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20'
-                            : 'bg-neutral-800 hover:bg-neutral-900 text-white shadow-xs'
+                            ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/30'
+                            : 'bg-white/20 hover:bg-white/30 text-white shadow-xs border border-white/25'
                         }`}
                       >
                         {isCompleted ? (
                           <>
                             <span>Ulangi Pelajaran</span>
-                            <ArrowRight className="w-4 h-4" />
+                            <ArrowRight className="w-3.5 h-3.5" />
                           </>
                         ) : (
                           <>
-                            <Play className="w-4 h-4 fill-current" />
+                            <Play className="w-3.5 h-3.5 fill-current" />
                             <span>Mulai Belajar</span>
-                            <ArrowRight className="w-4 h-4" />
+                            <ArrowRight className="w-3.5 h-3.5" />
                           </>
                         )}
                       </button>
@@ -206,4 +205,4 @@ export const LearnView: React.FC<LearnViewProps> = ({ progress, onStartLesson })
       </div>
     </div>
   );
-};
+});

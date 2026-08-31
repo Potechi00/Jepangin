@@ -47,7 +47,7 @@ export function updateKanaMemoryStrength(
 }
 
 /**
- * Generate 4 shuffled options for a question
+ * Generate 4 shuffled options for a question with zero text duplicates
  */
 function generateOptions(
   targetKana: KanaItem,
@@ -60,28 +60,40 @@ function generateOptions(
     { text: correctText, isCorrect: true, kanaItem: targetKana },
   ];
 
-  // Distractors
+  const addedTexts = new Set<string>([correctText]);
   const distractors: KanaItem[] = [];
 
-  // Priority 1: Pick items from same group
-  const sameGroup = candidatePool.filter((k) => k.id !== targetKana.id);
+  // Priority 1: Pick items from same pool/group whose option text doesn't collide
+  const sameGroup = candidatePool.filter((k) => {
+    const text = isReverse ? k.kana : k.romaji.toUpperCase();
+    return k.id !== targetKana.id && !addedTexts.has(text);
+  });
   const shuffledSameGroup = [...sameGroup].sort(() => 0.5 - Math.random());
 
   for (const item of shuffledSameGroup) {
     if (distractors.length < 3) {
-      distractors.push(item);
+      const text = isReverse ? item.kana : item.romaji.toUpperCase();
+      if (!addedTexts.has(text)) {
+        addedTexts.add(text);
+        distractors.push(item);
+      }
     }
   }
 
-  // Priority 2: If needed, pick from ALL_KANA_ITEMS with same type
+  // Priority 2: If needed, pick from ALL_KANA_ITEMS
   if (distractors.length < 3) {
-    const otherPool = ALL_KANA_ITEMS.filter(
-      (k) => k.type === targetKana.type && k.id !== targetKana.id && !distractors.some((d) => d.id === k.id)
-    ).sort(() => 0.5 - Math.random());
+    const otherPool = ALL_KANA_ITEMS.filter((k) => {
+      const text = isReverse ? k.kana : k.romaji.toUpperCase();
+      return k.id !== targetKana.id && !addedTexts.has(text);
+    }).sort(() => 0.5 - Math.random());
 
     for (const item of otherPool) {
       if (distractors.length < 3) {
-        distractors.push(item);
+        const text = isReverse ? item.kana : item.romaji.toUpperCase();
+        if (!addedTexts.has(text)) {
+          addedTexts.add(text);
+          distractors.push(item);
+        }
       }
     }
   }
@@ -115,17 +127,18 @@ export function buildQuestion(
   let promptDisplay = '';
   let subPrompt = '';
 
+  const scriptLabel = targetKana.type === 'hiragana' ? 'Hiragana' : 'Katakana';
+
   if (chosenType === 'recognition') {
-    promptText = 'Apa bunyi huruf ini?';
+    promptText = `Apa bunyi ${scriptLabel} ini?`;
     promptDisplay = targetKana.kana;
     subPrompt = 'Pilih bunyi Romaji yang tepat:';
   } else if (chosenType === 'reverse') {
-    promptText = 'Pilih huruf yang benar';
+    promptText = `Pilih huruf ${scriptLabel} yang benar`;
     promptDisplay = targetKana.romaji.toUpperCase();
-    subPrompt = `Manakah huruf untuk bunyi "${targetKana.romaji.toUpperCase()}"?`;
+    subPrompt = `Manakah huruf ${scriptLabel} untuk bunyi "${targetKana.romaji.toUpperCase()}"?`;
   } else {
-    // Audio or differentiation
-    promptText = 'Dengarkan & pilih hurufnya';
+    promptText = `Dengarkan & pilih ${scriptLabel}`;
     promptDisplay = '🔊';
     subPrompt = 'Sentuh tombol audio jika ingin mendengar ulang';
   }
@@ -162,7 +175,19 @@ export function generateBattleSession(
     return rec && (rec.needsReview || rec.strength < 60);
   });
 
-  // Ensure each Kana in the group appears at least once
+  // If group is large (like ALL_HIRAGANA or MIX_MASTER with 46-92 items), shuffle and pick distinct items
+  if (pool.length > totalCount) {
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, totalCount);
+
+    for (const item of selected) {
+      const type: QuestionType = Math.random() > 0.5 ? 'recognition' : 'reverse';
+      questions.push(buildQuestion(item, pool, type));
+    }
+    return questions;
+  }
+
+  // Ensure each Kana in smaller groups appears at least once
   const initialPool = [...pool].sort(() => 0.5 - Math.random());
   for (const item of initialPool) {
     const type: QuestionType = Math.random() > 0.5 ? 'recognition' : 'reverse';
@@ -176,7 +201,6 @@ export function generateBattleSession(
     let candidate: KanaItem;
 
     if (weakItems.length > 0 && Math.random() > 0.4) {
-      // Pick weak item that wasn't just asked
       const validWeak = weakItems.filter((w) => w.id !== lastKanaId);
       candidate = validWeak.length > 0
         ? validWeak[Math.floor(Math.random() * validWeak.length)]
@@ -205,7 +229,7 @@ export function generateBossBattleSession(
 ): BattleQuestion[] {
   const questions: BattleQuestion[] = [];
   const pool = [...group];
-  const count = 12;
+  const count = Math.min(15, Math.max(10, pool.length > 10 ? 15 : 12));
 
   let lastKanaId = '';
   for (let i = 0; i < count; i++) {
@@ -228,7 +252,6 @@ export function generateFocusBattle(
   targetKana: KanaItem,
   candidatePool: KanaItem[]
 ): FocusBattleConfig | null {
-  // Find confused character if defined, or another item in group
   let confusedKana: KanaItem | undefined;
 
   if (targetKana.similarTo && targetKana.similarTo.length > 0) {
@@ -244,8 +267,6 @@ export function generateFocusBattle(
     return null;
   }
 
-  // Generate 4 focused differentiation questions
-  const pair = [targetKana, confusedKana];
   const questions: BattleQuestion[] = [];
 
   // Q1: Target recognition
