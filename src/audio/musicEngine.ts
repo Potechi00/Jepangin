@@ -17,6 +17,13 @@ export interface MusicTrackInfo {
   src: string;
 }
 
+export function getAssetUrl(filename: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  const cleanName = filename.startsWith('/') ? filename.slice(1) : filename;
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  return `${normalizedBase}${cleanName}`;
+}
+
 export const MUSIC_TRACKS: MusicTrackInfo[] = [
   {
     id: 'kecapi',
@@ -25,7 +32,7 @@ export const MUSIC_TRACKS: MusicTrackInfo[] = [
     subtitle: 'Instrumental Tradisional',
     icon: '🎻',
     description: 'Suasana petikan dawai tradisional kecapi yang tenang, damai, dan elegan untuk belajar bahasa Jepang.',
-    src: '/Kecapi.mp3',
+    src: getAssetUrl('Kecapi.mp3'),
   },
   {
     id: 'seruling',
@@ -34,7 +41,7 @@ export const MUSIC_TRACKS: MusicTrackInfo[] = [
     subtitle: 'Asian Flute Atmosphere',
     icon: '🎋',
     description: 'Suasana hening seruling Asia bernuansa pegunungan, kuil, hutan, angin, dan alam Jepang yang damai.',
-    src: '/Seruling.mp3',
+    src: getAssetUrl('Seruling.mp3'),
   },
   {
     id: 'tokyo',
@@ -43,7 +50,7 @@ export const MUSIC_TRACKS: MusicTrackInfo[] = [
     subtitle: 'Japanese Lo-Fi',
     icon: '🌃',
     description: 'Suasana malam Tokyo yang modern, santai, dan nyaman untuk menemani fokus belajar.',
-    src: '/Tokyo Night.mp3',
+    src: getAssetUrl('Tokyo Night.mp3'),
   },
 ];
 
@@ -77,19 +84,19 @@ class CentralizedAudioManager {
 
     try {
       // 1. Kecapi
-      this.kecapi = new Audio('/Kecapi.mp3');
+      this.kecapi = new Audio(getAssetUrl('Kecapi.mp3'));
       this.kecapi.loop = true;
       this.kecapi.preload = 'auto';
       this.kecapi.volume = this.globalVolume;
 
       // 2. Seruling
-      this.seruling = new Audio('/Seruling.mp3');
+      this.seruling = new Audio(getAssetUrl('Seruling.mp3'));
       this.seruling.loop = true;
       this.seruling.preload = 'auto';
       this.seruling.volume = this.globalVolume;
 
       // 3. Tokyo Night
-      this.tokyoNight = new Audio('/Tokyo Night.mp3');
+      this.tokyoNight = new Audio(getAssetUrl('Tokyo Night.mp3'));
       this.tokyoNight.loop = true;
       this.tokyoNight.preload = 'auto';
       this.tokyoNight.volume = this.globalVolume;
@@ -123,8 +130,8 @@ class CentralizedAudioManager {
         audio.addEventListener('error', (e) => {
           console.warn(`Audio element error on track ${key}:`, e);
           // Fallback path check if needed
-          if (key === 'tokyoNight' && audio.src.endsWith('/Tokyo Night.mp3')) {
-            audio.src = '/tokyo_night.mp3';
+          if (key === 'tokyoNight' && audio.src.includes('Tokyo')) {
+            audio.src = getAssetUrl('tokyo_night.mp3');
             if (this.isPlaying && this.currentTrackKey === key) {
               audio.play().catch(() => {});
             }
